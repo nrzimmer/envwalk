@@ -102,33 +102,14 @@ int chpwd(char *old_path) {
     return run(unset);
 }
 
+extern const char _binary_hook_zsh_start[];
+extern const char _binary_hook_zsh_end[];
+
 static void hook_zsh(const char *zenv) {
-    // Remove old hooks
-    printf("add-zsh-hook -d preexec zenv_exec\n");
-    printf("add-zsh-hook -d chpwd zenv_chpwd\n");
-
-    // chpwd
-    printf("typeset -g ZENV_PREV_PWD=\"$PWD\"\n");
-    printf("zenv_chpwd() {\n");
-    printf("    %s cd \"$ZENV_PREV_PWD\"\n", zenv);
-    printf("    ZENV_PREV_PWD=\"$PWD\"\n");
-    printf("}\n");
-    printf("add-zsh-hook chpwd zenv_chpwd\n");
-
-    // pre exec
-    printf("autoload -Uz add-zsh-hook\n");
-    printf("zenv_exec() {\n");
-    printf("    ZENV_PREV_PWD=\"$PWD\"\n");
-    printf("    local cmd=\"$1\"\n");
-    printf("    local base=${cmd%% *}\n");
-    printf("    local -a skip_cmds=(zoxide cd)\n");
-    printf("    if (( ${skip_cmds[(Ie)$base]} )); then\n");
-    printf("        return\n");
-    printf("    fi;\n");
-    printf("    %s\n", zenv);
-    printf("}\n");
-    printf("add-zsh-hook preexec zenv_exec\n");
-    printf("\n");
+    const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
+    char *format = strndup(_binary_hook_zsh_start, size);
+    printf(format, zenv, zenv);
+    free(format);
 }
 
 int hook(const char *zenv, const char *str) {
@@ -173,6 +154,7 @@ int main(const int argc, const char **argv) {
             return hook(expand_path_file(argv[0]), params->text);
         case HELP:
         default:
+
 
 
     }

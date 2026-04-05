@@ -56,7 +56,10 @@ Params *parse_params(const int argc, const char **argv) {
         if (action == HOOK) {
             params->text = strdup(sb.items);
         } else {
-            params->text = expand_path(sb.items);
+            String_View sv = sv_from_cstr(sb.items);
+            sv_chop_prefix(&sv, sv_from_cstr("\""));
+            sv_chop_suffix(&sv, sv_from_cstr("\""));
+            params->text = expand_path(strndup(sv.data, sv.count));
         }
     }
     return params;

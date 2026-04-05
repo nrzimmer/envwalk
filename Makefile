@@ -28,9 +28,16 @@ all: $(TARGET)
 release: CFLAGS = $(CFLAGS_COMMON) $(CFLAGS_RELEASE)
 release: clean $(TARGET)
 
+$(OBJDIR)/hook_zsh.o: hook.zsh
+	objcopy \
+	  --input binary \
+	  --output elf64-x86-64 \
+	  --binary-architecture i386:x86-64 \
+	  hook.zsh $(OBJDIR)/hook_zsh.o
+
 # Link
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $@
+$(TARGET): $(OBJS) $(OBJDIR)/hook_zsh.o
+	$(CC) $(OBJS) $(OBJDIR)/hook_zsh.o -o $@
 
 # Compile
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
