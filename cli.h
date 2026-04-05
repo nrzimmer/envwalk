@@ -6,7 +6,7 @@ typedef enum {
     DENY,
     HELP,
     RUN,
-    CD,
+    CHPWD,
     LIST,
     HOOK
 } Action;

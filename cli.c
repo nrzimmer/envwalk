@@ -12,7 +12,7 @@ static Action parse_action(const char *action) {
     if (strcasecmp(action, "allow") == 0) return ALLOW;
     if (strcasecmp(action, "deny") == 0) return DENY;
     if (strcasecmp(action, "list") == 0) return LIST;
-    if (strcasecmp(action, "cd") == 0) return CD;
+    if (strcasecmp(action, "cd") == 0) return CHPWD;
     if (strcasecmp(action, "hook") == 0) return HOOK;
     return HELP;
 }
@@ -53,7 +53,11 @@ Params *parse_params(const int argc, const char **argv) {
             sb_append_cstr(&sb, " ");
         }
         sb.items[sb.count - 1] = 0;
-        params->text = expand_path(sb.items);
+        if (action == HOOK) {
+            params->text = strdup(sb.items);
+        } else {
+            params->text = expand_path(sb.items);
+        }
     }
     return params;
 }

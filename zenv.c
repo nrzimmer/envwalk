@@ -44,7 +44,7 @@ static int run() {
     return 0;
 }
 
-int cd(char *old_path) {
+int chpwd(char *old_path) {
     // First we need to traverse the old_path back until we find a common folder with the current path
     // If there is an allowed folder in each partial path, we need to unset the variables on that folder env
 
@@ -54,7 +54,7 @@ int cd(char *old_path) {
     pwd = expand_path(pwd);
     const StringList *parts = get_path_parts(pwd);
 
-    const size_t max = old_parts->count > parts->count ? old_parts->count : parts->count;
+    const size_t max = old_parts->count < parts->count ? old_parts->count : parts->count;
     size_t same = 0;
     for (size_t i = 0; i < max; ++i) {
         if (strcmp(old_parts->items[i], parts->items[i]) == 0) {
@@ -70,7 +70,7 @@ int cd(char *old_path) {
         char *filepath = expand_path(strndup(sb.items, sb.count));
         if (is_path_allowed(filepath)) {
             sb_append_cstr(&sb, "/.env");
-            filepath = expand_path(strndup(sb.items, sb.count));
+            filepath = expand_path_file(strndup(sb.items, sb.count));
             Variables dot_env = {0};
             if (parse_dotenv(&dot_env, filepath)) {
                 for (size_t j = 0; j < dot_env.count; ++j) {
@@ -85,10 +85,40 @@ int cd(char *old_path) {
     return run();
 }
 
-int hook(char * str) {
+static void hook_zsh(const char *zenv) {
+    // Remove old hooks
+    printf("add-zsh-hook -d preexec zenv_exec\n");
+    printf("add-zsh-hook -d chpwd zenv_chpwd\n");
+
+    // chpwd
+    printf("typeset -g ZENV_PREV_PWD=\"$PWD\"\n");
+    printf("zenv_chpwd() {\n");
+    printf("    %s cd \"$ZENV_PREV_PWD\"\n", zenv);
+    printf("    ZENV_PREV_PWD=\"$PWD\"\n");
+    printf("}\n");
+    printf("add-zsh-hook chpwd zenv_chpwd\n");
+
+    // pre exec
+    printf("autoload -Uz add-zsh-hook\n");
+    printf("zenv_exec() {\n");
+    printf("    ZENV_PREV_PWD=\"$PWD\"\n");
+    printf("    local cmd=\"$1\"\n");
+    printf("    local base=${cmd%% *}\n");
+    printf("    local -a skip_cmds=(zoxide cd)\n");
+    printf("    if (( ${skip_cmds[(Ie)$base]} )); then\n");
+    printf("        return\n");
+    printf("    fi;\n");
+    printf("    %s\n", zenv);
+    printf("}\n");
+    printf("add-zsh-hook preexec zenv_exec\n");
+    printf("\n");
+}
+
+int hook(const char *zenv, const char *str) {
     const Shell shell = parse_shell(str);
     switch (shell) {
         case ZSH:
+            hook_zsh(zenv);
             return 0;
         case BASH:
         default:
@@ -100,7 +130,7 @@ int hook(char * str) {
 int main(const int argc, const char **argv) {
     Params *params = parse_params(argc, argv);
 
-    if (params->action == RUN)
+    if (params->action == RUN || params->action == CHPWD)
         nob_minimal_log_level = NOB_ERROR;
 
     parse_config();
@@ -120,10 +150,10 @@ int main(const int argc, const char **argv) {
             return list_paths();
         case RUN:
             return run();
-        case CD:
-            return cd(params->text);
+        case CHPWD:
+            return chpwd(params->text);
         case HOOK:
-            return hook(params->text);
+            return hook(expand_path_file(argv[0]), params->text);
         case HELP:
         default:
 
