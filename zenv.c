@@ -15,7 +15,7 @@
 #include "dotenv.h"
 #include "cli.h"
 
-static int run() {
+static int run(StringList *unsets) {
     const char *pwd = getcwd(nullptr, 0);
     NOB_ASSERT(pwd != nullptr && "Could not get current working directory.");
     pwd = expand_path(pwd);
@@ -35,6 +35,21 @@ static int run() {
             }
         }
         --parts->count;
+    }
+
+    if (unsets != nullptr) {
+        for (size_t i = 0; i < unsets->count; ++i) {
+            bool found = false;
+            for (size_t j = 0; j < dot_env.count; ++j) {
+                if (strncmp(unsets->items[i], dot_env.items[j].key.data, dot_env.items[j].key.count) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                printf("unset %s\n", unsets->items[i]);
+            }
+        }
     }
 
     for (size_t i = 0; i < dot_env.count; ++i) {
@@ -64,6 +79,8 @@ int chpwd(char *old_path) {
         }
     }
 
+    StringList *unset = calloc(1, sizeof(StringList));
+
     for (size_t i = same; i < old_parts->count; ++i) {
         String_Builder sb = sb_from_string_list(old_parts);
         --old_parts->count;
@@ -74,7 +91,7 @@ int chpwd(char *old_path) {
             Variables dot_env = {0};
             if (parse_dotenv(&dot_env, filepath)) {
                 for (size_t j = 0; j < dot_env.count; ++j) {
-                    printf("unset %.*s\n", sv_dot_star(dot_env.items[j].key));
+                    da_append(unset, strndup(dot_env.items[j].key.data, dot_env.items[j].key.count));
                 }
             }
         }
@@ -82,7 +99,7 @@ int chpwd(char *old_path) {
 
     // Now we run normally to set all the variables in current path
     // This may be unnecessary because it will be run before the next command too
-    return run();
+    return run(unset);
 }
 
 static void hook_zsh(const char *zenv) {
@@ -149,7 +166,7 @@ int main(const int argc, const char **argv) {
         case LIST:
             return list_paths();
         case RUN:
-            return run();
+            return run(nullptr);
         case CHPWD:
             return chpwd(params->text);
         case HOOK:
