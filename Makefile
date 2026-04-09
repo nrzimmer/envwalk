@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS_COMMON = -std=c23 -Wall -Wextra -Wpedantic -Werror
 
 # Debug / Release flags
-CFLAGS_DEBUG = -ggdb -O0
+CFLAGS_DEBUG = -ggdb -O0 -rdynamic -fno-omit-frame-pointer
 CFLAGS_RELEASE = -O3 -march=native -mtune=native -DNDEBUG
 
 # Default to debug
@@ -20,6 +20,8 @@ TARGET = zenv
 # Source and object files
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
+HOOKS = $(wildcard hook.*)
+HOOKS_OBJ = $(patsubst hook.%,$(OBJDIR)/hook_%.o,$(HOOKS))
 
 # Default target
 all: $(TARGET)
@@ -28,16 +30,16 @@ all: $(TARGET)
 release: CFLAGS = $(CFLAGS_COMMON) $(CFLAGS_RELEASE)
 release: clean $(TARGET)
 
-$(OBJDIR)/hook_zsh.o: hook.zsh
+$(OBJDIR)/hook_%.o: hook.% | $(OBJDIR)
 	objcopy \
 	  --input binary \
 	  --output elf64-x86-64 \
 	  --binary-architecture i386:x86-64 \
-	  hook.zsh $(OBJDIR)/hook_zsh.o
+	  $< $@
 
 # Link
-$(TARGET): $(OBJS) $(OBJDIR)/hook_zsh.o
-	$(CC) $(OBJS) $(OBJDIR)/hook_zsh.o -o $@
+$(TARGET): $(OBJS) $(HOOKS_OBJ)
+	$(CC) $(OBJS) $(HOOKS_OBJ) -o $@
 
 # Compile
 $(OBJDIR)/%.o: %.c | $(OBJDIR)

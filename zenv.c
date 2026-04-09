@@ -14,6 +14,7 @@
 #include "config.h"
 #include "dotenv.h"
 #include "cli.h"
+#include "stack_trace.h"
 
 static int run(StringList *unsets) {
     const char *pwd = getcwd(nullptr, 0);
@@ -112,6 +113,16 @@ static void hook_zsh(const char *zenv) {
     free(format);
 }
 
+extern const char _binary_hook_bash_start[];
+extern const char _binary_hook_bash_end[];
+
+static void hook_bash(const char * zenv) {
+    const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
+    char *format = strndup(_binary_hook_bash_start, size);
+    printf(format, zenv, zenv);
+    free(format);
+}
+
 int hook(const char *zenv, const char *str) {
     const Shell shell = parse_shell(str);
     switch (shell) {
@@ -119,6 +130,8 @@ int hook(const char *zenv, const char *str) {
             hook_zsh(zenv);
             return 0;
         case BASH:
+            hook_bash(zenv);
+            return 0;
         default:
             fprintf(stderr, "Unsupported shell: %s\n", str);
             return 1;
@@ -126,6 +139,7 @@ int hook(const char *zenv, const char *str) {
 }
 
 int main(const int argc, const char **argv) {
+    setup_handler();
     Params *params = parse_params(argc, argv);
 
     if (params->action == RUN || params->action == CHPWD)
