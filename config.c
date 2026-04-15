@@ -116,3 +116,10 @@ int list_paths() {
     }
     return 0;
 }
+
+#ifdef TESTING
+void config_reset_for_testing(void) {
+    config = (Config){0};
+    configPath = nullptr;
+}
+#endif

@@ -11,4 +11,8 @@ int allow_path(const char *path);
 int deny_path(const char *path);
 int list_paths();
 
+#ifdef TESTING
+void config_reset_for_testing(void);
+#endif
+
 #endif //ZENV_CONFIG_H

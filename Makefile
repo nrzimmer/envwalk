@@ -18,8 +18,12 @@ OBJDIR = obj
 TARGET = zenv
 
 # Source and object files
-SRCS = $(wildcard *.c)
+SRCS = $(filter-out test.c, $(wildcard *.c))
 OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
+
+# Test sources (all except zenv.c which owns main + NOB_IMPLEMENTATION)
+TEST_SRCS = test.c $(filter-out zenv.c, $(SRCS))
+TEST_OBJS = $(patsubst %.c,$(OBJDIR)/test_%.o,$(TEST_SRCS))
 HOOKS = $(wildcard hook.*)
 HOOKS_OBJ = $(patsubst hook.%,$(OBJDIR)/hook_%.o,$(HOOKS))
 
@@ -49,10 +53,18 @@ $(OBJDIR)/%.o: %.c | $(OBJDIR)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
+# Test target
+test: $(TEST_OBJS) $(HOOKS_OBJ)
+	$(CC) $(TEST_OBJS) $(HOOKS_OBJ) -o test_runner
+	./test_runner; rm -f test_runner
+
+$(OBJDIR)/test_%.o: %.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -DTESTING -MMD -MP -c $< -o $@
+
 # Clean
 clean:
-	rm -rf $(OBJDIR) $(TARGET)
+	rm -rf $(OBJDIR) $(TARGET) test_runner
 
 -include $(OBJS:.o=.d)
 
-.PHONY: all clean release
+.PHONY: all clean release test
