@@ -1,3 +1,9 @@
+0.2-4 (2026-04-16)
+  * bump nob.h to version v3.8.2
+  * add arch-install target to makefile
+  * Fix issues found in code review
+  * Add hook tests to binary test suite
+
 0.2-3 (2026-04-16)
   * Add gh release create to release script
 

@@ -1,3 +1,12 @@
+envwalk (0.2-4) unstable; urgency=low
+
+  * bump nob.h to version v3.8.2
+  * add arch-install target to makefile
+  * Fix issues found in code review
+  * Add hook tests to binary test suite
+
+ -- Natanael Rodrigo Zimmer <nrzimmer@gmail.com>  Thu, 16 Apr 2026 20:03:02 -0300
+
 envwalk (0.2-3) unstable; urgency=low
 
   * Add gh release create to release script
