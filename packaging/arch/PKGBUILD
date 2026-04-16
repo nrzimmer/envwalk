@@ -1,5 +1,5 @@
 pkgname=envwalk
-pkgver=0.1
+pkgver=0.2
 pkgrel=1
 pkgdesc="Per-directory .env loader for zsh and bash"
 arch=('x86_64')
