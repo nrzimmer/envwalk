@@ -6,17 +6,23 @@ PKGBUILD="$REPO_ROOT/packaging/arch/PKGBUILD"
 ARCH_CHANGELOG="$REPO_ROOT/packaging/arch/CHANGELOG"
 UBUNTU_CHANGELOG="$REPO_ROOT/packaging/ubuntu/changelog"
 
+trap 'make clean -C "$REPO_ROOT" 2>/dev/null' EXIT
+
 usage() {
-  echo "Usage: $(basename "$0") [--dry-run] <major|minor|fix>"
+  echo "Usage: $(basename "$0") [--dry-run|--preview] <major|minor|fix>"
+  echo "  --dry-run   show diff and revert changes"
+  echo "  --preview   show diff and keep changes without committing"
   exit 1
 }
 
 DRY_RUN=0
+PREVIEW=0
 BUMP=""
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run|-n) DRY_RUN=1 ;;
+    --preview|-p) PREVIEW=1 ;;
     major|minor|fix) BUMP="$arg" ;;
     *) usage ;;
   esac
@@ -30,6 +36,14 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Error: dirty working tree — commit or stash changes first"
   exit 1
 fi
+
+# Run tests and verify release build
+echo "Running tests..."
+make test
+echo "Building release..."
+make release
+echo "All checks passed."
+echo ""
 
 # Read current version
 CUR_VER=$(grep '^pkgver=' "$PKGBUILD" | cut -d= -f2)
@@ -52,24 +66,38 @@ sed -i "s/^pkgver=.*/pkgver=$NEW_VER/" "$PKGBUILD"
 sed -i "s/^pkgrel=.*/pkgrel=$NEW_REL/" "$PKGBUILD"
 
 # --- Recompute sha256sums if source=() has entries ---
-mapfile -t SRC_FILES < <(
+# Source entries are basenames; search for the actual file under known dirs.
+find_source_file() {
+  local name="$1"
+  local search_dirs=("." "src" "src/hooks" "src/third-party")
+  for dir in "${search_dirs[@]}"; do
+    if [ -f "$REPO_ROOT/$dir/$name" ]; then
+      echo "$REPO_ROOT/$dir/$name"
+      return 0
+    fi
+  done
+  echo "Error: cannot find source file '$name' in repo" >&2
+  exit 1
+}
+
+mapfile -t SRC_NAMES < <(
   awk '/^source=\(\)/{next} /^source=\(/{p=1;next} p&&/^\)/{exit} p{print}' "$PKGBUILD" \
     | tr -s ' \t' '\n' | tr -d '"' | grep -v '^$'
 )
 
-if [ "${#SRC_FILES[@]}" -gt 0 ]; then
+if [ "${#SRC_NAMES[@]}" -gt 0 ]; then
   NEW_SUMS=()
-  for f in "${SRC_FILES[@]}"; do
-    NEW_SUMS+=("$(sha256sum "$f" | awk '{print $1}')")
+  for name in "${SRC_NAMES[@]}"; do
+    filepath="$(find_source_file "$name")"
+    NEW_SUMS+=("$(sha256sum "$filepath" | awk '{print $1}')")
   done
 
-  SUMS_BLOCK=$(printf 'sha256sums=(\n')
-  for sum in "${NEW_SUMS[@]}"; do
-    SUMS_BLOCK+=$(printf "  '%s'\n" "$sum")
-  done
-  SUMS_BLOCK+=$(printf ')\n')
+  {
+    printf 'sha256sums=(\n'
+    for sum in "${NEW_SUMS[@]}"; do printf "  '%s'\n" "$sum"; done
+    printf ')\n'
+  } > /tmp/envwalk_shasums
 
-  printf '%s' "$SUMS_BLOCK" > /tmp/envwalk_shasums
   awk '
     /^sha256sums=\(/ { skip=1 }
     skip && /^\)/ { skip=0; system("cat /tmp/envwalk_shasums"); next }
@@ -112,15 +140,19 @@ $CHANGES
 printf '%s' "$NEW_UBUNTU_ENTRY" | cat - "$UBUNTU_CHANGELOG" > /tmp/envwalk_ubuntu_changelog.new
 mv /tmp/envwalk_ubuntu_changelog.new "$UBUNTU_CHANGELOG"
 
+# --- Show diff ---
+echo ""
+GIT_PAGER=cat git diff -- packaging/arch/PKGBUILD packaging/arch/CHANGELOG packaging/ubuntu/changelog
+
 # --- Commit, tag, push ---
 if [ "$DRY_RUN" -eq 1 ]; then
-  echo ""
-  echo "Dry run — skipping git commit, tag, and push."
-  echo "Files updated:"
-  echo "  $PKGBUILD"
-  echo "  $ARCH_CHANGELOG"
-  echo "  $UBUNTU_CHANGELOG"
+  echo "Dry run — reverting changes."
+  git checkout -- packaging/arch/PKGBUILD packaging/arch/CHANGELOG packaging/ubuntu/changelog
+elif [ "$PREVIEW" -eq 1 ]; then
+  echo "Preview — changes kept, nothing committed."
 else
+  read -r -p "Commit and push v$NEW_VER-$NEW_REL? [y/N] " CONFIRM
+  [[ "$CONFIRM" =~ ^[Yy]$ ]] || { echo "Aborted."; git checkout -- packaging/arch/PKGBUILD packaging/arch/CHANGELOG packaging/ubuntu/changelog; exit 1; }
   git add packaging/arch/PKGBUILD packaging/arch/CHANGELOG packaging/ubuntu/changelog
   git commit -m "release version $NEW_VER-$NEW_REL"
   git tag "v$NEW_VER-$NEW_REL"

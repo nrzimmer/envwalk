@@ -6,23 +6,58 @@ arch=('x86_64')
 license=('MIT')
 changelog='CHANGELOG'
 
-source=()
-sha256sums=()
+source=(
+  "cli.c"
+  "cli.h"
+  "config.c"
+  "config.h"
+  "dotenv.c"
+  "dotenv.h"
+  "path.c"
+  "path.h"
+  "types.c"
+  "types.h"
+  "envwalk.c"
+  "stack_trace.c"
+  "stack_trace.h"
+  "test.c"
+  "nob.h"
+  "Makefile"
+  "hook.zsh"
+  "hook.bash"
+)
+
+sha256sums=(
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+)
 
 build() {
-  local repodir
-  repodir="$(realpath "$startdir/../..")"
-  make -C "$repodir" release
+  cd "$srcdir"
+  make -B SRCDIR=. HOOKSDIR=. THIRDPARTY=.
 }
 
 check() {
-  local repodir
-  repodir="$(realpath "$startdir/../..")"
-  make -C "$repodir" test
+  cd "$srcdir"
+  make test SRCDIR=. HOOKSDIR=. THIRDPARTY=.
 }
 
 package() {
-  local repodir
-  repodir="$(realpath "$startdir/../..")"
-  install -Dm755 "$repodir/envwalk" "$pkgdir/usr/bin/envwalk"
+  install -Dm755 "$srcdir/envwalk" "$pkgdir/usr/bin/envwalk"
 }

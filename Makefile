@@ -71,8 +71,25 @@ clean:
 
 -include $(OBJS:.o=.d)
 
+ARCH_DIR = packaging/arch
+ARCH_STAGE = \
+	src/cli.c src/cli.h \
+	src/config.c src/config.h \
+	src/dotenv.c src/dotenv.h \
+	src/path.c src/path.h \
+	src/types.c src/types.h \
+	src/envwalk.c \
+	src/stack_trace.c src/stack_trace.h \
+	src/test.c \
+	src/third-party/nob.h \
+	Makefile \
+	src/hooks/hook.zsh \
+	src/hooks/hook.bash
+
 arch:
-	cd packaging/arch && makepkg -f
+	cp $(ARCH_STAGE) $(ARCH_DIR)/
+	cd $(ARCH_DIR) && makepkg -f
+	cd $(ARCH_DIR) && rm -f $(notdir $(ARCH_STAGE))
 
 ubuntu:
 	ln -sfT packaging/ubuntu debian
