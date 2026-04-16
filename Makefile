@@ -88,8 +88,13 @@ ARCH_STAGE = \
 
 arch:
 	cp $(ARCH_STAGE) $(ARCH_DIR)/
-	cd $(ARCH_DIR) && makepkg -f
-	cd $(ARCH_DIR) && rm -f $(notdir $(ARCH_STAGE))
+	cd $(ARCH_DIR); \
+	makepkg $(if $(INSTALL),-si,-f); status=$$?; \
+	rm -f $(notdir $(ARCH_STAGE)); \
+	exit $$status
+
+arch-install: INSTALL=1
+arch-install: arch
 
 ubuntu:
 	ln -sfT packaging/ubuntu debian
