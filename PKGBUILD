@@ -1,7 +1,7 @@
-pkgname=z-env
+pkgname=envwalk
 pkgver=0.3
 pkgrel=2
-pkgdesc="Z-Env (aka zenv) is a simple environment manager for your shell"
+pkgdesc="envwalk is a simple environment manager for your shell"
 arch=('x86_64')
 license=('MIT')
 
@@ -11,7 +11,7 @@ source=(
   "dotenv.c" "dotenv.h"
   "path.c" "path.h"
   "types.c" "types.h"
-  "zenv.c"
+  "envwalk.c"
   "nob.h"
   "Makefile"
   "hook.zsh" "hook.bash"
@@ -44,5 +44,5 @@ package() {
   cd "$srcdir"
 
   # install binary (adjust name if different)
-  install -Dm755 zenv "$pkgdir/usr/bin/zenv"
+  install -Dm755 envwalk "$pkgdir/usr/bin/envwalk"
 }

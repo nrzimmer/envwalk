@@ -1,5 +1,5 @@
-#ifndef ZENV_CONFIG_H
-#define ZENV_CONFIG_H
+#ifndef ENVWALK_CONFIG_H
+#define ENVWALK_CONFIG_H
 
 #include "nob.h"
 
@@ -15,4 +15,4 @@ int list_paths();
 void config_reset_for_testing(void);
 #endif
 
-#endif //ZENV_CONFIG_H
+#endif //ENVWALK_CONFIG_H

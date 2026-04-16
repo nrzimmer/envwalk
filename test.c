@@ -61,7 +61,7 @@ static const char *current_suite = "";
 // --- Helpers ---
 
 static char *write_temp_file(const char *content) {
-    char *path = strdup("/tmp/zenv_test_XXXXXX");
+    char *path = strdup("/tmp/envwalk_test_XXXXXX");
     int fd = mkstemp(path);
     write(fd, content, strlen(content));
     close(fd);
@@ -133,7 +133,7 @@ static void test_dotenv_duplicate_keeps_first(void) {
 static void test_dotenv_nonexistent_file(void) {
     nob_set_log_handler(nob_nullptr_log_handler);
     Variables vars = {0};
-    ASSERT(!parse_dotenv(&vars, "/tmp/zenv_no_such_file_xyz"));
+    ASSERT(!parse_dotenv(&vars, "/tmp/envwalk_no_such_file_xyz"));
     ASSERT(vars.count == 0);
     nob_set_log_handler(nob_default_log_handler);
 }
@@ -312,20 +312,20 @@ static void test_is_directory_with_file(void) {
 }
 
 static void test_is_directory_nonexistent(void) {
-    ASSERT(is_directory("/tmp/zenv_no_such_dir_xyz") == 0);
+    ASSERT(is_directory("/tmp/envwalk_no_such_dir_xyz") == 0);
 }
 
 // --- parse_params tests ---
 
 static void test_parse_params_no_args(void) {
-    const char *argv[] = {"zenv"};
+    const char *argv[] = {"envwalk"};
     Params *p = parse_params(1, argv);
     ASSERT(p->action == RUN);
     ASSERT(p->text == nullptr);
 }
 
 static void test_parse_params_allow_no_path(void) {
-    const char *argv[] = {"zenv", "allow"};
+    const char *argv[] = {"envwalk", "allow"};
     Params *p = parse_params(2, argv);
     ASSERT(p->action == ALLOW);
     // cwd expansion for missing path happens in main(), not parse_params()
@@ -333,34 +333,34 @@ static void test_parse_params_allow_no_path(void) {
 }
 
 static void test_parse_params_allow_with_path(void) {
-    const char *argv[] = {"zenv", "allow", "/tmp"};
+    const char *argv[] = {"envwalk", "allow", "/tmp"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == ALLOW);
     ASSERT_STR_EQ(p->text, "/tmp/");
 }
 
 static void test_parse_params_deny_with_path(void) {
-    const char *argv[] = {"zenv", "deny", "/tmp"};
+    const char *argv[] = {"envwalk", "deny", "/tmp"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == DENY);
     ASSERT_STR_EQ(p->text, "/tmp/");
 }
 
 static void test_parse_params_list(void) {
-    const char *argv[] = {"zenv", "list"};
+    const char *argv[] = {"envwalk", "list"};
     Params *p = parse_params(2, argv);
     ASSERT(p->action == LIST);
 }
 
 static void test_parse_params_chpwd(void) {
-    const char *argv[] = {"zenv", "cd", "/old/path"};
+    const char *argv[] = {"envwalk", "cd", "/old/path"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == CHPWD);
     ASSERT_STR_EQ(p->text, "/old/path/");
 }
 
 static void test_parse_params_hook(void) {
-    const char *argv[] = {"zenv", "hook", "zsh"};
+    const char *argv[] = {"envwalk", "hook", "zsh"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == HOOK);
     // HOOK text is not path-expanded
@@ -368,25 +368,25 @@ static void test_parse_params_hook(void) {
 }
 
 static void test_parse_params_actions_case_insensitive(void) {
-    const char *argv_allow[] = {"zenv", "ALLOW"};
+    const char *argv_allow[] = {"envwalk", "ALLOW"};
     ASSERT(parse_params(2, argv_allow)->action == ALLOW);
 
-    const char *argv_deny[] = {"zenv", "Deny"};
+    const char *argv_deny[] = {"envwalk", "Deny"};
     ASSERT(parse_params(2, argv_deny)->action == DENY);
 
-    const char *argv_list[] = {"zenv", "LIST"};
+    const char *argv_list[] = {"envwalk", "LIST"};
     ASSERT(parse_params(2, argv_list)->action == LIST);
 
-    const char *argv_cd[] = {"zenv", "CD"};
+    const char *argv_cd[] = {"envwalk", "CD"};
     ASSERT(parse_params(2, argv_cd)->action == CHPWD);
 
-    const char *argv_hook[] = {"zenv", "HOOK", "zsh"};
+    const char *argv_hook[] = {"envwalk", "HOOK", "zsh"};
     ASSERT(parse_params(3, argv_hook)->action == HOOK);
 }
 
 static void test_parse_params_quoted_path(void) {
     // Surrounding quotes are stripped before path expansion
-    const char *argv[] = {"zenv", "allow", "\"/tmp\""};
+    const char *argv[] = {"envwalk", "allow", "\"/tmp\""};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == ALLOW);
     ASSERT_STR_EQ(p->text, "/tmp/");
@@ -394,7 +394,7 @@ static void test_parse_params_quoted_path(void) {
 
 static void test_parse_params_hook_multi_arg(void) {
     // Extra args are concatenated with a space for HOOK
-    const char *argv[] = {"zenv", "hook", "bash", "--norc"};
+    const char *argv[] = {"envwalk", "hook", "bash", "--norc"};
     Params *p = parse_params(4, argv);
     ASSERT(p->action == HOOK);
     ASSERT_STR_EQ(p->text, "bash --norc");
@@ -405,7 +405,7 @@ static void test_parse_params_hook_multi_arg(void) {
 // Creates a temp dir for HOME with a .config/ subdir inside.
 // The caller must restore HOME and free the returned pointer.
 static char *config_setup(const char *config_content) {
-    char *home = strdup("/tmp/zenv_home_XXXXXX");
+    char *home = strdup("/tmp/envwalk_home_XXXXXX");
     mkdtemp(home);
     char config_dir[4096];
     snprintf(config_dir, sizeof(config_dir), "%s/.config", home);
@@ -413,7 +413,7 @@ static char *config_setup(const char *config_content) {
 
     if (config_content != nullptr) {
         char config_path[4096];
-        snprintf(config_path, sizeof(config_path), "%s/.config/zenv", home);
+        snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
         int fd = open(config_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         write(fd, config_content, strlen(config_content));
         close(fd);
@@ -497,7 +497,7 @@ static void test_config_allow_path_duplicate(void) {
 
     // Verify by reading back the saved config file
     char config_path[4096];
-    snprintf(config_path, sizeof(config_path), "%s/.config/zenv", home);
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
     Variables vars = {0};
     parse_dotenv(&vars, config_path);
     size_t count = 0;

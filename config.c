@@ -11,7 +11,7 @@ typedef struct {
 static Config config = {0};
 
 void parse_config() {
-    configPath = expand_path_file("~/.config/zenv");
+    configPath = expand_path_file("~/.config/envwalk");
     NOB_ASSERT(configPath != nullptr && "config_path not set");
 
     StringList *allowedPaths = &config.allowedPaths;

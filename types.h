@@ -1,5 +1,5 @@
-#ifndef ZENV_TYPES_H
-#define ZENV_TYPES_H
+#ifndef ENVWALK_TYPES_H
+#define ENVWALK_TYPES_H
 
 #include <stddef.h>
 #include "nob.h"

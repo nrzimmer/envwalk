@@ -1,5 +1,5 @@
-#ifndef ZENV_CLI_H
-#define ZENV_CLI_H
+#ifndef ENVWALK_CLI_H
+#define ENVWALK_CLI_H
 
 typedef enum {
     ALLOW,

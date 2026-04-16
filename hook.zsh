@@ -1,16 +1,16 @@
-add-zsh-hook -d preexec zenv_exec
-add-zsh-hook -d chpwd zenv_chpwd
+add-zsh-hook -d preexec envwalk_exec
+add-zsh-hook -d chpwd envwalk_chpwd
 
-typeset -g ZENV_PREV_PWD="$PWD"
-zenv_chpwd() {
-    eval "$(%s cd \"$ZENV_PREV_PWD\")"
-    ZENV_PREV_PWD="$PWD"
+typeset -g ENVWALK_PREV_PWD="$PWD"
+envwalk_chpwd() {
+    eval "$(%s cd \"$ENVWALK_PREV_PWD\")"
+    ENVWALK_PREV_PWD="$PWD"
 }
-add-zsh-hook chpwd zenv_chpwd
+add-zsh-hook chpwd envwalk_chpwd
 
 autoload -Uz add-zsh-hook
-zenv_exec() {
-    ZENV_PREV_PWD="$PWD"
+envwalk_exec() {
+    ENVWALK_PREV_PWD="$PWD"
     local cmd="$1"
     local base=${cmd%% *}
     local -a skip_cmds=(zoxide cd)
@@ -19,4 +19,4 @@ zenv_exec() {
     fi
     eval "$(%s)"
 }
-add-zsh-hook preexec zenv_exec
+add-zsh-hook preexec envwalk_exec

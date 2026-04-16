@@ -1,6 +1,6 @@
-#ifndef ZENV_STACK_TRACE_H
-#define ZENV_STACK_TRACE_H
+#ifndef ENVWALK_STACK_TRACE_H
+#define ENVWALK_STACK_TRACE_H
 
 void setup_handler(void);
 
-#endif //ZENV_STACK_TRACE_H
+#endif //ENVWALK_STACK_TRACE_H

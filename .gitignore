@@ -1,4 +1,4 @@
 obj/
 .env
 .idea/
-zenv
+envwalk

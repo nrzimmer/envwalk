@@ -15,14 +15,14 @@ CFLAGS = $(CFLAGS_COMMON) $(CFLAGS_DEBUG)
 OBJDIR = obj
 
 # Target executable
-TARGET = zenv
+TARGET = envwalk
 
 # Source and object files
 SRCS = $(filter-out test.c, $(wildcard *.c))
 OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
 
-# Test sources (all except zenv.c which owns main + NOB_IMPLEMENTATION)
-TEST_SRCS = test.c $(filter-out zenv.c, $(SRCS))
+# Test sources (all except envwalk.c which owns main + NOB_IMPLEMENTATION)
+TEST_SRCS = test.c $(filter-out envwalk.c, $(SRCS))
 TEST_OBJS = $(patsubst %.c,$(OBJDIR)/test_%.o,$(TEST_SRCS))
 HOOKS = $(wildcard hook.*)
 HOOKS_OBJ = $(patsubst hook.%,$(OBJDIR)/hook_%.o,$(HOOKS))

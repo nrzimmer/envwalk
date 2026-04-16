@@ -113,31 +113,31 @@ int chpwd(char *old_path) {
 extern const char _binary_hook_zsh_start[];
 extern const char _binary_hook_zsh_end[];
 
-static void hook_zsh(const char *zenv) {
+static void hook_zsh(const char *bin) {
     const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
     char *format = strndup(_binary_hook_zsh_start, size);
-    printf(format, zenv, zenv);
+    printf(format, bin, bin);
     free(format);
 }
 
 extern const char _binary_hook_bash_start[];
 extern const char _binary_hook_bash_end[];
 
-static void hook_bash(const char * zenv) {
+static void hook_bash(const char *bin) {
     const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
     char *format = strndup(_binary_hook_bash_start, size);
-    printf(format, zenv, zenv);
+    printf(format, bin, bin);
     free(format);
 }
 
-int hook(const char *zenv, const char *str) {
+int hook(const char *bin, const char *str) {
     const Shell shell = parse_shell(str);
     switch (shell) {
         case ZSH:
-            hook_zsh(zenv);
+            hook_zsh(bin);
             return 0;
         case BASH:
-            hook_bash(zenv);
+            hook_bash(bin);
             return 0;
         default:
             fprintf(stderr, "Unsupported shell: %s\n", str);

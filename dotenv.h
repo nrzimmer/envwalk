@@ -1,5 +1,5 @@
-#ifndef ZENV_DOTENV_H
-#define ZENV_DOTENV_H
+#ifndef ENVWALK_DOTENV_H
+#define ENVWALK_DOTENV_H
 
 #include "nob.h"
 

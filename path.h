@@ -1,5 +1,5 @@
-#ifndef ZENV_PATH_H
-#define ZENV_PATH_H
+#ifndef ENVWALK_PATH_H
+#define ENVWALK_PATH_H
 
 #include "types.h"
 

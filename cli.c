@@ -30,14 +30,14 @@ Params *parse_params(const int argc, const char **argv) {
     }
 
     if (action == HELP) {
-        printf("Usage: zenv [action] [args]\n\n");
+        printf("Usage: envwalk [action] [args]\n\n");
         printf("Actions:\n");
         printf("  allow [path]   Allow a directory to auto-load its .env file (defaults to current directory)\n");
         printf("  deny  [path]   Remove a directory from the allowed list (defaults to current directory)\n");
         printf("  list           Show all allowed directories\n");
         printf("  hook <shell>   Print the shell hook to be eval'd in your shell config (zsh, bash)\n");
         printf("  help           Show this help message\n\n");
-        printf("If no action is provided, zenv prints the current environment exports to stdout.\n\n");
+        printf("If no action is provided, envwalk prints the current environment exports to stdout.\n\n");
         exit(0);
     }
 

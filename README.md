@@ -1,6 +1,6 @@
-# Z-Env
+# envwalk
 
-Z-Env (aka zenv) is a simple environment manager for your shell. It automatically loads `.env` files when you enter an allowed directory and unloads them when you leave.
+envwalk is a simple environment manager for your shell. It automatically loads `.env` files when you enter an allowed directory and unloads them when you leave.
 
 ## Features
 
@@ -15,7 +15,7 @@ Z-Env (aka zenv) is a simple environment manager for your shell. It automaticall
 **Build from source:**
 ```sh
 make
-sudo cp zenv /usr/local/bin/zenv
+sudo cp envwalk /usr/local/bin/envwalk
 ```
 
 **Arch Linux (PKGBUILD):**
@@ -27,23 +27,23 @@ makepkg -si
 
 Add to `~/.zshrc`:
 ```sh
-eval "$(zenv hook zsh)"
+eval "$(envwalk hook zsh)"
 ```
 
 Add to `~/.bashrc`:
 ```sh
-eval "$(zenv hook bash)"
+eval "$(envwalk hook bash)"
 ```
 
 ## Usage
 
 | Command | Description |
 |---|---|
-| `zenv allow [path]` | Allow a directory to auto-load its `.env` file |
-| `zenv deny [path]` | Remove a directory from the allowed list |
-| `zenv list` | Show all allowed directories |
-| `zenv hook <shell>` | Print the shell hook (`zsh` or `bash`) |
-| `zenv help` | Show help |
+| `envwalk allow [path]` | Allow a directory to auto-load its `.env` file |
+| `envwalk deny [path]` | Remove a directory from the allowed list |
+| `envwalk list` | Show all allowed directories |
+| `envwalk hook <shell>` | Print the shell hook (`zsh` or `bash`) |
+| `envwalk help` | Show help |
 
 `allow` and `deny` default to the current directory when no path is given.
 
@@ -59,7 +59,7 @@ PATH_VAR=~/projects    # ~ is expanded to $HOME
 
 ## How it works
 
-On every command, zenv traverses from the current directory up to the root, loading `.env` files from all allowed directories it finds. When you change directory, variables that belonged to directories you've left are automatically unset.
+On every command, envwalk traverses from the current directory up to the root, loading `.env` files from all allowed directories it finds. When you change directory, variables that belonged to directories you've left are automatically unset.
 
 ## Development
 
