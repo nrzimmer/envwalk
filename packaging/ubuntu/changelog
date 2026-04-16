@@ -1,3 +1,9 @@
+envwalk (0.2-2) unstable; urgency=low
+
+  * Update release script and improve packaging
+
+ -- Natanael Rodrigo Zimmer <nrzimmer@gmail.com>  Thu, 16 Apr 2026 14:46:15 -0300
+
 envwalk (0.2-1) unstable; urgency=low
 
   * Initial release.
