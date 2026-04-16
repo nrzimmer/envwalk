@@ -158,6 +158,9 @@ else
   git tag "v$NEW_VER-$NEW_REL"
   git push
   git push origin "v$NEW_VER-$NEW_REL"
+  gh release create "v$NEW_VER-$NEW_REL" \
+    --title "v$NEW_VER-$NEW_REL" \
+    --notes "$CHANGES"
   echo ""
   echo "Released v$NEW_VER-$NEW_REL"
 fi
