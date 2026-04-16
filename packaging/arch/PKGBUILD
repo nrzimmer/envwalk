@@ -4,6 +4,7 @@ pkgrel=1
 pkgdesc="Per-directory .env loader for zsh and bash"
 arch=('x86_64')
 license=('MIT')
+changelog='CHANGELOG'
 
 source=()
 sha256sums=()
