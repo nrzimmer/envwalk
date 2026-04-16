@@ -1,3 +1,9 @@
+envwalk (0.2-3) unstable; urgency=low
+
+  * Add gh release create to release script
+
+ -- Natanael Rodrigo Zimmer <nrzimmer@gmail.com>  Thu, 16 Apr 2026 14:49:37 -0300
+
 envwalk (0.2-2) unstable; urgency=low
 
   * Update release script and improve packaging
