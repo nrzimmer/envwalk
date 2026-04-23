@@ -1,3 +1,9 @@
+envwalk (0.3-2) unstable; urgency=low
+
+  * better function to get current path
+
+ -- Natanael Rodrigo Zimmer <nrzimmer@gmail.com>  Thu, 23 Apr 2026 09:01:41 -0300
+
 envwalk (0.3-1) unstable; urgency=low
 
   * fix ubuntu packaging && GCC 13 support
