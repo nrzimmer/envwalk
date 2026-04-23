@@ -1,3 +1,10 @@
+envwalk (0.3-3) unstable; urgency=low
+
+  * fix stack trace
+  * run tests with debug and relase configuration
+
+ -- Natanael Rodrigo Zimmer <nrzimmer@gmail.com>  Thu, 23 Apr 2026 09:27:06 -0300
+
 envwalk (0.3-2) unstable; urgency=low
 
   * better function to get current path

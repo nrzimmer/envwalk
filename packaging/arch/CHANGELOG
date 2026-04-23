@@ -1,3 +1,7 @@
+0.3-3 (2026-04-23)
+  * fix stack trace
+  * run tests with debug and relase configuration
+
 0.3-2 (2026-04-23)
   * better function to get current path
 
