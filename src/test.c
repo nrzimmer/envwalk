@@ -380,6 +380,24 @@ static void test_expand_path_absolute_no_tilde(void)
     ASSERT_STR_EQ(result, "/usr/local/bin/");
 }
 
+static void test_get_pwd_matches_getcwd(void)
+{
+    char buf[4096];
+    getcwd(buf, sizeof(buf));
+    char *pwd = get_pwd();
+    ASSERT(pwd != nullptr);
+    ASSERT_STR_EQ(pwd, buf);
+    free(pwd);
+}
+
+static void test_get_pwd_is_absolute(void)
+{
+    char *pwd = get_pwd();
+    ASSERT(pwd != nullptr);
+    ASSERT(pwd[0] == '/');
+    free(pwd);
+}
+
 static void test_get_path_parts_trailing_slash(void)
 {
     StringList *parts = get_path_parts("/foo/bar/");
@@ -928,6 +946,10 @@ int main(void)
     test_get_path_parts_single_segment();
     SUITE("parts: root");
     test_get_path_parts_root();
+    SUITE("get_pwd: matches getcwd");
+    test_get_pwd_matches_getcwd();
+    SUITE("get_pwd: is absolute path");
+    test_get_pwd_is_absolute();
     SUITE("parts: trailing slash");
     test_get_path_parts_trailing_slash();
     SUITE("expand: tilde");
