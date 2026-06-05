@@ -6,7 +6,7 @@ bool parse_dotenv(Variables *variables, const Path folder) {
     if (get_path_type(folder) != PT_DIR)
         return false;
     String_Builder sb = {0};
-    String_Builder filepath = sb_from_path_with_file(folder, sv_from_cstr(".env"));
+    const String_Builder filepath = sb_from_path_with_file(folder, sv_from_cstr(".env"));
     if (!read_entire_file(filepath.data, &sb)) {
         sb_free(sb);
         sb_free(filepath);

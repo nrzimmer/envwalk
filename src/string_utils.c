@@ -27,7 +27,7 @@ String_View string_from_sv(const String_View sv) {
 }
 
 bool sv_eq_cstr_ci(const String_View sv, const char *cstr) {
-    size_t len = strlen(cstr);
+    const size_t len = strlen(cstr);
     if (sv.count != len) return false;
     return strncasecmp(sv.data, cstr, len) == 0;
 }

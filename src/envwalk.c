@@ -24,7 +24,7 @@ static int run(StringList *unsets) {
     while (pwd.count > 0) {
         if (is_path_allowed(pwd)) {
             if (!parse_dotenv(&dot_env, pwd)) {
-                String_Builder sb = sb_from_path(pwd, true);
+                const String_Builder sb = sb_from_path(pwd, true);
                 nob_log(NOB_ERROR, "Failed to parse .env file at %s", sb.data);
                 sb_free(sb);
                 rc = 1;
@@ -56,10 +56,10 @@ static int run(StringList *unsets) {
     }
 
     for (size_t i = 0; i < dot_env.count; ++i) {
-        String_View value = dot_env.items[i].value;
+        const String_View value = dot_env.items[i].value;
         if (value.count > 0 && value.data[0] == '~') {
             Path path = path_from_sv(value);
-            String_Builder sb = sb_from_path(path, true);
+            const String_Builder sb = sb_from_path(path, true);
             printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), sb.data);
             sb_free(sb);
             path_free(&path);
@@ -126,7 +126,7 @@ extern const char _binary_hook_zsh_end[];
 static void hook_zsh(const Path bin) {
     const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
     char *format = strndup(_binary_hook_zsh_start, size);
-    String_Builder sb = sb_from_path(bin, true);
+    const String_Builder sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
     sb_free(sb);
     free(format);
@@ -138,7 +138,7 @@ extern const char _binary_hook_bash_end[];
 static void hook_bash(const Path bin) {
     const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
     char *format = strndup(_binary_hook_bash_start, size);
-    String_Builder sb = sb_from_path(bin, true);
+    const String_Builder sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
     sb_free(sb);
     free(format);

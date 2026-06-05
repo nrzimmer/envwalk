@@ -48,7 +48,7 @@ PathType get_path_type(const Path path) {
 // Consumes `path`: kept parts are moved into the result; discarded parts
 // (".", "..", and entries popped by "..") have their data freed here, and the
 // input's items buffer is released.
-Path normalize(Path path) {
+Path normalize(const Path path) {
     Path normalized = {0};
     normalized.first_char = path.first_char;
     normalized.type = path.type;
@@ -77,7 +77,7 @@ Path normalize(Path path) {
 // Consumes `path`: the absolute case returns it unchanged; relative cases move
 // its parts into a freshly-resolved base and free the input's items buffer (and
 // any part not carried over, e.g. the leading "~").
-Path expand(Path path) {
+Path expand(const Path path) {
     if (path.first_char == '/')
         return path;
 
@@ -113,7 +113,7 @@ Path expand(Path path) {
 }
 
 Path path_from_sv(String_View sv) {
-    bool is_absolute = sv.count > 0 && sv.data[0] == '/';
+    const bool is_absolute = sv.count > 0 && sv.data[0] == '/';
     sv_chop_prefix(&sv, sv_from_cstr("/"));
     sv_chop_suffix(&sv, sv_from_cstr("/"));
 
@@ -144,7 +144,7 @@ String_Builder sb_from_path_with_file(const Path path, const String_View file) {
     UNREACHABLE("Should not append a file to a path that is not a directory");
 }
 
-String_Builder sb_from_path(Path path, bool null_terminated) {
+String_Builder sb_from_path(Path path, const bool null_terminated) {
     if (path.type == PT_UNKNOWN)
         path.type = get_path_type(path);
 
@@ -177,7 +177,7 @@ char *get_pwd_cstr(void) {
         return buf;
     }
 
-    int err = errno;
+    const int err = errno;
 
     buf = realpath(".", nullptr);
     if (buf != nullptr) {
@@ -187,7 +187,7 @@ char *get_pwd_cstr(void) {
 #if defined(__linux__)
     {
         char tmp[PATH_MAX];
-        ssize_t len = readlink("/proc/self/cwd", tmp, sizeof(tmp) - 1);
+        const ssize_t len = readlink("/proc/self/cwd", tmp, sizeof(tmp) - 1);
         if (len != -1) {
             tmp[len] = '\0';
             buf = malloc(len + 1);
