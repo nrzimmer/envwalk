@@ -22,19 +22,23 @@ CFLAGS = $(CFLAGS_COMMON) $(CFLAGS_DEBUG)
 # Directories
 OBJDIR     = obj
 SRCDIR     = src
+TESTSDIR   = $(SRCDIR)/tests
 HOOKSDIR   = $(SRCDIR)/hooks
 THIRDPARTY = $(SRCDIR)/third-party
 
 # Target executable
 TARGET = envwalk
 
-# Source and object files
+# Source and object files (excludes test.c if present for compatibility)
 SRCS = $(filter-out $(SRCDIR)/test.c, $(wildcard $(SRCDIR)/*.c))
 OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRCS))
 
-# Test sources (all except envwalk.c which owns main + NOB_IMPLEMENTATION)
-TEST_SRCS = $(SRCDIR)/test.c $(filter-out $(SRCDIR)/envwalk.c, $(SRCS))
-TEST_OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/test_%.o,$(TEST_SRCS))
+# Test sources: src/tests/*.c + all src/*.c except envwalk.c
+TEST_MOD_SRCS = $(filter-out $(SRCDIR)/envwalk.c, $(SRCS))
+TEST_MOD_OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/test_%.o,$(TEST_MOD_SRCS))
+TEST_SUITE_SRCS = $(wildcard $(TESTSDIR)/*.c)
+TEST_SUITE_OBJS = $(patsubst $(TESTSDIR)/%.c,$(OBJDIR)/tests_%.o,$(TEST_SUITE_SRCS))
+TEST_OBJS = $(TEST_MOD_OBJS) $(TEST_SUITE_OBJS)
 HOOKS = $(wildcard $(HOOKSDIR)/hook.*)
 HOOKS_OBJ = $(patsubst $(HOOKSDIR)/hook.%,$(OBJDIR)/hook_%.o,$(HOOKS))
 
@@ -75,6 +79,9 @@ test: $(TEST_OBJS) $(HOOKS_OBJ)
 $(OBJDIR)/test_%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -DTESTING -MMD -MP -c $< -o $@
 
+$(OBJDIR)/tests_%.o: $(TESTSDIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -DTESTING -I$(SRCDIR) -I$(THIRDPARTY) -MMD -MP -c $< -o $@
+
 # Clean
 clean:
 	rm -rf $(OBJDIR) $(TARGET) test_runner
@@ -90,7 +97,6 @@ ARCH_STAGE = \
 	src/types.c src/types.h \
 	src/envwalk.c \
 	src/stack_trace.c src/stack_trace.h \
-	src/test.c \
 	src/third-party/nob.h \
 	Makefile \
 	src/hooks/hook.zsh \
