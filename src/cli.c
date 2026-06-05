@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 
 #include "nob.h"
 #include "path.h"
@@ -61,5 +60,14 @@ Params *parse_params(const int argc, const char **argv) {
             params->path = path_from_sv(sv);
         }
     }
+    sb_free(sb);
     return params;
+}
+
+void params_free(Params *params) {
+    if (params == nullptr) return;
+    if (params->action == HOOK)
+        free((void *) params->text.data);
+    path_free(&params->path);
+    free(params);
 }

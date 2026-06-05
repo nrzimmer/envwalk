@@ -10,6 +10,7 @@ static void test_sb_from_string_list_empty(void)
     // empty list → just the leading "/"
     ASSERT(sb.count == 1);
     ASSERT(sb.items[0] == '/');
+    sb_free(sb);
 }
 
 static void test_sb_from_string_list_single(void)
@@ -19,6 +20,8 @@ static void test_sb_from_string_list_single(void)
     String_Builder sb = sb_from_string_list(&list);
     sb_append_null(&sb);
     ASSERT_STR_EQ(sb.items, "/foo/");
+    sb_free(sb);
+    da_free(list);
 }
 
 static void test_sb_from_string_list_multiple(void)
@@ -30,6 +33,8 @@ static void test_sb_from_string_list_multiple(void)
     String_Builder sb = sb_from_string_list(&list);
     sb_append_null(&sb);
     ASSERT_STR_EQ(sb.items, "/a/b/c/");
+    sb_free(sb);
+    da_free(list);
 }
 
 void run_types_tests(void)

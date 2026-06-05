@@ -34,5 +34,6 @@ bool path_eq(Path a, Path b);
 
 Path get_pwd(void);
 Path path_from_sv(String_View sv);
+void path_free(Path *path);
 
 #endif

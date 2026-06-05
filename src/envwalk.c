@@ -18,16 +18,26 @@
 
 static int run(StringList *unsets) {
     Path pwd = get_pwd();
+    const size_t pwd_count = pwd.count;
     Variables dot_env = {0};
+    int rc = 0;
     while (pwd.count > 0) {
         if (is_path_allowed(pwd)) {
             if (!parse_dotenv(&dot_env, pwd)) {
                 String_Builder sb = sb_from_path(pwd, true);
                 nob_log(NOB_ERROR, "Failed to parse .env file at %s", sb.data);
-                return 1;
+                sb_free(sb);
+                rc = 1;
+                break;
             }
         }
         --pwd.count;
+    }
+    pwd.count = pwd_count;
+    path_free(&pwd);
+    if (rc != 0) {
+        vars_free(&dot_env);
+        return rc;
     }
 
     if (unsets != nullptr) {
@@ -45,20 +55,22 @@ static int run(StringList *unsets) {
         }
     }
 
-    String_Builder sb = {0};
     for (size_t i = 0; i < dot_env.count; ++i) {
         String_View value = dot_env.items[i].value;
-        char *value_str;
         if (value.count > 0 && value.data[0] == '~') {
-            const Path path = path_from_sv(value);
-            sb = sb_from_path(path, true);
-            value_str = sb.data;
+            Path path = path_from_sv(value);
+            String_Builder sb = sb_from_path(path, true);
+            printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), sb.data);
+            sb_free(sb);
+            path_free(&path);
         } else {
-            value_str = strndup(value.data, value.count);
+            char *value_str = strndup(value.data, value.count);
+            printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), value_str);
+            free(value_str);
         }
-        printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), value_str);
     }
 
+    vars_free(&dot_env);
     return 0;
 }
 
@@ -66,7 +78,7 @@ int chpwd(Path old_path) {
     // First we need to traverse the old_path back until we find a common folder with the current path
     // If there is an allowed folder in each partial path, we need to unset the variables on that folder env
 
-    const Path pwd = get_pwd();
+    Path pwd = get_pwd();
 
     const size_t max = old_path.count < pwd.count ? old_path.count : pwd.count;
     size_t same = 0;
@@ -80,6 +92,7 @@ int chpwd(Path old_path) {
 
     StringList *unset = calloc(1, sizeof(StringList));
 
+    const size_t old_count = old_path.count;
     while (old_path.count > same) {
         if (is_path_allowed(old_path)) {
             Variables dot_env = {0};
@@ -88,13 +101,23 @@ int chpwd(Path old_path) {
                     da_append(unset, strndup(dot_env.items[j].key.data, dot_env.items[j].key.count));
                 }
             }
+            vars_free(&dot_env);
         }
         --old_path.count;
     }
+    old_path.count = old_count;
+    path_free(&old_path);
+    path_free(&pwd);
 
     // Now we run normally to set all the variables in current path
     // This may be unnecessary because it will be run before the next command too
-    return run(unset);
+    const int rc = run(unset);
+
+    for (size_t i = 0; i < unset->count; ++i)
+        free(unset->items[i]);
+    da_free(*unset);
+    free(unset);
+    return rc;
 }
 
 extern const char _binary_hook_zsh_start[];
@@ -103,8 +126,9 @@ extern const char _binary_hook_zsh_end[];
 static void hook_zsh(const Path bin) {
     const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
     char *format = strndup(_binary_hook_zsh_start, size);
-    const String_Builder sb = sb_from_path(bin, true);
+    String_Builder sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
+    sb_free(sb);
     free(format);
 }
 
@@ -114,8 +138,9 @@ extern const char _binary_hook_bash_end[];
 static void hook_bash(const Path bin) {
     const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
     char *format = strndup(_binary_hook_bash_start, size);
-    const String_Builder sb = sb_from_path(bin, true);
+    String_Builder sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
+    sb_free(sb);
     free(format);
 }
 
@@ -147,25 +172,38 @@ int main(const int argc, const char **argv) {
         params->path = get_pwd();
     }
 
+    int rc;
     switch (params->action) {
         case ALLOW:
-            return allow_path(params->path);
+            rc = allow_path(params->path);
+            params->path = (Path) {0};
+            break;
         case DENY:
-            return deny_path(params->path);
+            rc = deny_path(params->path);
+            params->path = (Path) {0};
+            break;
         case LIST:
-            return list_paths();
+            rc = list_paths();
+            break;
         case RUN:
-            return run(nullptr);
+            rc = run(nullptr);
+            break;
         case CHPWD:
-            return chpwd(params->path);
-        case HOOK:
-            return hook(path_from_cstr(argv[0]), params->text);
+            rc = chpwd(params->path);
+            params->path = (Path) {0};
+            break;
+        case HOOK: {
+            Path bin = path_from_cstr(argv[0]);
+            rc = hook(bin, params->text);
+            path_free(&bin);
+            break;
+        }
         case HELP:
         default:
-
-
-
+            UNREACHABLE("This should not happen...");
     }
 
-    UNREACHABLE("This should not happen...");
+    config_free();
+    params_free(params);
+    return rc;
 }

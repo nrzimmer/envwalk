@@ -25,6 +25,7 @@ typedef struct {
 } Params;
 
 Params *parse_params(int argc, const char **argv);
+void params_free(Params *params);
 Shell parse_shell(String_View shell);
 
 #endif

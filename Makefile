@@ -69,12 +69,16 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-# Test target — build envwalk binary first so integration tests can spawn it
-test: $(TARGET) $(TEST_OBJS) $(HOOKS_OBJ)
-	$(CC) $(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(TEST_OBJS) $(HOOKS_OBJ) -o test_runner
-	ENVWALK_BIN=$(CURDIR)/$(TARGET) ./test_runner; rm -f test_runner
-	$(CC) $(CFLAGS_COMMON) $(CFLAGS_RELEASE) $(TEST_OBJS) $(HOOKS_OBJ) -o test_runner
-	ENVWALK_BIN=$(CURDIR)/$(TARGET) ./test_runner; rm -f test_runner
+# Test target — runs the suite under AddressSanitizer + LeakSanitizer + UBSan.
+# Sources are compiled directly (no shared objs) so the sanitizers instrument
+# everything. The envwalk binary is built first so integration tests can spawn it.
+CFLAGS_ASAN = -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer
+test: $(TARGET) $(HOOKS_OBJ)
+	$(CC) $(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_ASAN) -DTESTING \
+	  -I$(SRCDIR) $(TEST_MOD_SRCS) $(TEST_SUITE_SRCS) $(HOOKS_OBJ) -o test_runner
+	ENVWALK_BIN=$(CURDIR)/$(TARGET) ASAN_OPTIONS=detect_leaks=1 \
+	  UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+	  ./test_runner; status=$$?; rm -f test_runner; exit $$status
 
 $(OBJDIR)/test_%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -DTESTING -MMD -MP -c $< -o $@

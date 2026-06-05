@@ -34,34 +34,50 @@ PathType get_path_type(const Path path) {
     sb_append_null(&sb);
 
     struct stat st;
+    PathType result;
     if (stat(sb.data, &st) != 0)
-        return PT_NOT_EXISTS;
-    if (S_ISDIR(st.st_mode))
-        return PT_DIR;
-    return PT_FILE;
+        result = PT_NOT_EXISTS;
+    else if (S_ISDIR(st.st_mode))
+        result = PT_DIR;
+    else
+        result = PT_FILE;
+    sb_free(sb);
+    return result;
 }
 
-Path normalize(const Path path) {
+// Consumes `path`: kept parts are moved into the result; discarded parts
+// (".", "..", and entries popped by "..") have their data freed here, and the
+// input's items buffer is released.
+Path normalize(Path path) {
     Path normalized = {0};
     normalized.first_char = path.first_char;
     normalized.type = path.type;
 
     for (size_t i = 0; i < path.count; ++i) {
-        if (sv_eq_cstr(path.parts[i], "."))
+        if (sv_eq_cstr(path.parts[i], ".")) {
+            free((void *) path.parts[i].data);
             continue;
+        }
 
         if (sv_eq_cstr(path.parts[i], "..")) {
-            if (normalized.count > 0)
+            free((void *) path.parts[i].data);
+            if (normalized.count > 0) {
                 normalized.count--;
+                free((void *) normalized.items[normalized.count].data);
+            }
             continue;
         }
 
         da_append(&normalized, path.parts[i]);
     }
+    da_free(path);
     return normalized;
 }
 
-Path expand(const Path path) {
+// Consumes `path`: the absolute case returns it unchanged; relative cases move
+// its parts into a freshly-resolved base and free the input's items buffer (and
+// any part not carried over, e.g. the leading "~").
+Path expand(Path path) {
     if (path.first_char == '/')
         return path;
 
@@ -78,6 +94,9 @@ Path expand(const Path path) {
             for (size_t i = 1; i < path.count; ++i) {
                 da_append(&home, path.parts[i]);
             }
+            // The leading "~" is not carried over; free it and the input buffer.
+            free((void *) path.parts[0].data);
+            da_free(path);
             return home;
         }
 
@@ -86,6 +105,7 @@ Path expand(const Path path) {
         for (size_t i = 0; i < path.count; ++i) {
             da_append(&pwd, path.parts[i]);
         }
+        da_free(path);
         return pwd;
     }
 
@@ -185,5 +205,15 @@ char *get_pwd_cstr(void) {
 }
 
 Path get_pwd(void) {
-    return path_from_cstr(get_pwd_cstr());
+    char *cwd = get_pwd_cstr();
+    Path p = path_from_cstr(cwd);
+    free(cwd);
+    return p;
+}
+
+void path_free(Path *path) {
+    for (size_t i = 0; i < path->count; ++i)
+        free((void *) path->parts[i].data);
+    da_free(*path);
+    *path = (Path) {0};
 }

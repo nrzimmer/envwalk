@@ -14,8 +14,12 @@ typedef struct {
     KeyValuePair *items;
     size_t count;
     size_t capacity;
+    // Heap buffers (file contents and file paths) that the key/value/path
+    // String_Views point into. Owned here and released by vars_free.
+    StringList backings;
 } Variables;
 
 bool parse_dotenv(Variables *variables, Path folder);
+void vars_free(Variables *variables);
 
 #endif

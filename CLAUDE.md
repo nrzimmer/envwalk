@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```sh
 make          # debug build (default: -ggdb -O0 -rdynamic)
 make release  # optimized build (-O3 -march=native -DNDEBUG)
-make test     # build and run the test suite
+make test     # run the test suite under AddressSanitizer + LeakSanitizer + UBSan
 make clean    # remove obj/, envwalk binary, and test_runner
 make arch     # build Arch Linux package (requires makepkg)
 make ubuntu   # build Ubuntu/Debian package (requires debhelper)
