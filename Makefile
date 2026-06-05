@@ -48,7 +48,7 @@ all: $(TARGET)
 # Release target
 release:
 	$(MAKE) clean
-	$(MAKE) $(TARGET)
+	$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_COMMON) $(CFLAGS_RELEASE)"
 
 $(OBJDIR)/hook_%.o: $(HOOKSDIR)/hook.% | $(OBJDIR)
 	cd $(HOOKSDIR) && objcopy \
