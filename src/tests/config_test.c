@@ -298,6 +298,52 @@ static void test_config_list_paths_output(void)
     config_teardown(orig, home);
 }
 
+static void test_config_list_paths_empty(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+
+    char tmp[] = "/tmp/envwalk_list_empty_XXXXXX";
+    int tmpfd = mkstemp(tmp);
+
+    int saved_stdout = dup(STDOUT_FILENO);
+    fflush(stdout);
+    dup2(tmpfd, STDOUT_FILENO);
+    close(tmpfd);
+
+    list_paths();
+    fflush(stdout);
+
+    dup2(saved_stdout, STDOUT_FILENO);
+    close(saved_stdout);
+
+    int fd = open(tmp, O_RDONLY);
+    char buf[1024] = {0};
+    read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    unlink(tmp);
+
+    // header is always printed; no path lines
+    ASSERT(strstr(buf, "List of paths") != NULL);
+    ASSERT(strstr(buf, "- ") == NULL);
+
+    config_teardown(orig, home);
+}
+
+static void test_config_deny_removes_only_target(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+    allow_path("/tmp/");
+    allow_path("/usr/local/");
+    deny_path("/tmp/");
+    ASSERT(!is_path_allowed("/tmp/"));
+    ASSERT(is_path_allowed("/usr/local/"));
+    config_teardown(orig, home);
+}
+
 void run_config_tests(void)
 {
     printf("config:\n");
@@ -333,4 +379,8 @@ void run_config_tests(void)
     test_config_is_path_allowed_sb();
     SUITE("list_paths output");
     test_config_list_paths_output();
+    SUITE("list_paths empty");
+    test_config_list_paths_empty();
+    SUITE("deny removes only target");
+    test_config_deny_removes_only_target();
 }

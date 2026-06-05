@@ -211,6 +211,50 @@ static void test_dotenv_whitespace_trimmed_from_line(void)
     free(path);
 }
 
+static void test_dotenv_key_equals_empty_value_skipped(void)
+{
+    // "KEY=" has equals but empty value — treated same as missing value, skipped
+    int saved = nob_minimal_log_level;
+    nob_minimal_log_level = NOB_ERROR;
+    char *path = write_temp_file("KEY=\nA=1\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT_SV_EQ(vars.items[0].key, "A");
+    unlink(path);
+    free(path);
+    nob_minimal_log_level = saved;
+}
+
+static void test_dotenv_whitespace_only_line_skipped(void)
+{
+    // Line containing only spaces is trimmed to empty and skipped
+    char *path = write_temp_file("   \nA=1\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT_SV_EQ(vars.items[0].key, "A");
+    unlink(path);
+    free(path);
+}
+
+static void test_dotenv_accumulates_across_calls(void)
+{
+    // Two parse_dotenv calls into the same Variables accumulate entries
+    char *path1 = write_temp_file("A=1\n");
+    char *path2 = write_temp_file("B=2\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path1));
+    ASSERT(parse_dotenv(&vars, path2));
+    ASSERT(vars.count == 2);
+    ASSERT_SV_EQ(vars.items[0].key, "A");
+    ASSERT_SV_EQ(vars.items[1].key, "B");
+    unlink(path1);
+    unlink(path2);
+    free(path1);
+    free(path2);
+}
+
 void run_dotenv_tests(void)
 {
     printf("dotenv:\n");
@@ -248,4 +292,10 @@ void run_dotenv_tests(void)
     test_dotenv_export_prefix_not_stripped();
     SUITE("whitespace trimmed from line");
     test_dotenv_whitespace_trimmed_from_line();
+    SUITE("key= empty value skipped");
+    test_dotenv_key_equals_empty_value_skipped();
+    SUITE("whitespace-only line skipped");
+    test_dotenv_whitespace_only_line_skipped();
+    SUITE("accumulates across calls");
+    test_dotenv_accumulates_across_calls();
 }

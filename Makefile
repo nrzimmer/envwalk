@@ -69,12 +69,12 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-# Test target
-test: $(TEST_OBJS) $(HOOKS_OBJ)
+# Test target — build envwalk binary first so integration tests can spawn it
+test: $(TARGET) $(TEST_OBJS) $(HOOKS_OBJ)
 	$(CC) $(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(TEST_OBJS) $(HOOKS_OBJ) -o test_runner
-	./test_runner; rm -f test_runner
+	ENVWALK_BIN=$(CURDIR)/$(TARGET) ./test_runner; rm -f test_runner
 	$(CC) $(CFLAGS_COMMON) $(CFLAGS_RELEASE) $(TEST_OBJS) $(HOOKS_OBJ) -o test_runner
-	./test_runner; rm -f test_runner
+	ENVWALK_BIN=$(CURDIR)/$(TARGET) ./test_runner; rm -f test_runner
 
 $(OBJDIR)/test_%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -DTESTING -MMD -MP -c $< -o $@

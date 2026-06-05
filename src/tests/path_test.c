@@ -149,6 +149,16 @@ static void test_expand_path_relative(void)
     free(cwd);
 }
 
+static void test_expand_path_file_relative(void)
+{
+    char *cwd = get_pwd();
+    char expected[4096];
+    snprintf(expected, sizeof(expected), "%s/foo/bar.txt", cwd);
+    char *result = expand_path_file("foo/bar.txt");
+    ASSERT_STR_EQ(result, expected);
+    free(cwd);
+}
+
 static void test_is_directory_with_dir(void)
 {
     ASSERT(is_directory("/tmp") == 1);
@@ -208,6 +218,8 @@ void run_path_tests(void)
     test_expand_path_file_dotdot();
     SUITE("expand: relative");
     test_expand_path_relative();
+    SUITE("expand_file: relative");
+    test_expand_path_file_relative();
 
     printf("is_directory:\n");
     SUITE("directory");

@@ -20,6 +20,7 @@ void run_types_tests(void);
 void run_cli_tests(void);
 void run_config_tests(void);
 void run_hooks_tests(void);
+void run_integration_tests(void);
 
 int main(void)
 {
@@ -31,6 +32,7 @@ int main(void)
     run_cli_tests();
     run_config_tests();
     run_hooks_tests();
+    run_integration_tests();
 
     printf("\n%d/%d passed\n", tests_passed, tests_run);
     return tests_passed == tests_run ? 0 : 1;

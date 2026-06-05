@@ -98,6 +98,24 @@ static void test_parse_params_hook_multi_arg(void)
     ASSERT_STR_EQ(p->text, "bash --norc");
 }
 
+static void test_parse_params_deny_no_path(void)
+{
+    // deny with no path: action=DENY, text stays nullptr (main() fills cwd)
+    const char *argv[] = {"envwalk", "deny"};
+    Params *p = parse_params(2, argv);
+    ASSERT(p->action == DENY);
+    ASSERT(p->text == nullptr);
+}
+
+static void test_parse_params_chpwd_no_path(void)
+{
+    // cd with no path: action=CHPWD, text stays nullptr
+    const char *argv[] = {"envwalk", "cd"};
+    Params *p = parse_params(2, argv);
+    ASSERT(p->action == CHPWD);
+    ASSERT(p->text == nullptr);
+}
+
 static void test_parse_shell_zsh(void)
 {
     ASSERT(parse_shell("zsh") == ZSH);
@@ -140,6 +158,10 @@ void run_cli_tests(void)
     test_parse_params_quoted_path();
     SUITE("hook multi-arg");
     test_parse_params_hook_multi_arg();
+    SUITE("deny no path");
+    test_parse_params_deny_no_path();
+    SUITE("chpwd no path");
+    test_parse_params_chpwd_no_path();
 
     printf("cli:\n");
     SUITE("shell: zsh");
