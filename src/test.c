@@ -393,6 +393,35 @@ static void test_expand_path_absolute_no_tilde(void)
     ASSERT_STR_EQ(result, "/usr/local/bin/");
 }
 
+static void test_expand_path_empty_string(void)
+{
+    // Empty string → treated as relative path → expands to cwd/
+    char *cwd = get_pwd();
+    char expected[4096];
+    snprintf(expected, sizeof(expected), "%s/", cwd);
+    char *result = expand_path("");
+    ASSERT_STR_EQ(result, expected);
+    free(cwd);
+}
+
+static void test_expand_path_root(void)
+{
+    char *result = expand_path("/");
+    ASSERT_STR_EQ(result, "/");
+}
+
+static void test_expand_path_file_absolute(void)
+{
+    char *result = expand_path_file("/usr/local/bin/envwalk");
+    ASSERT_STR_EQ(result, "/usr/local/bin/envwalk");
+}
+
+static void test_get_path_parts_empty_string(void)
+{
+    StringList *parts = get_path_parts("");
+    ASSERT(parts->count == 0);
+}
+
 static void test_get_pwd_matches_getcwd(void)
 {
     char buf[4096];
@@ -1085,6 +1114,14 @@ int main(void)
     test_dotenv_whitespace_trimmed_from_line();
 
     printf("path:\n");
+    SUITE("expand: empty string → cwd");
+    test_expand_path_empty_string();
+    SUITE("expand: root");
+    test_expand_path_root();
+    SUITE("expand_file: absolute no tilde");
+    test_expand_path_file_absolute();
+    SUITE("parts: empty string → zero segments");
+    test_get_path_parts_empty_string();
     SUITE("parts: three segments");
     test_get_path_parts_three_segments();
     SUITE("parts: single segment");
