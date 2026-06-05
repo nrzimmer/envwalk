@@ -696,6 +696,82 @@ static void test_config_deny_path_not_present(void)
     config_teardown(orig, home);
 }
 
+static void test_config_save_config_writes_file(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+    allow_path("/tmp/");
+
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+
+    String_Builder sb = {0};
+    ASSERT(read_entire_file(config_path, &sb));
+    sb_append_null(&sb);
+    ASSERT(strstr(sb.items, "allowed=/tmp/") != NULL);
+
+    config_teardown(orig, home);
+}
+
+static void test_config_save_config_removes_denied_path(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+    allow_path("/tmp/");
+    allow_path("/usr/local/");
+    deny_path("/tmp/");
+
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+
+    String_Builder sb = {0};
+    ASSERT(read_entire_file(config_path, &sb));
+    sb_append_null(&sb);
+    ASSERT(strstr(sb.items, "allowed=/tmp/") == NULL);
+    ASSERT(strstr(sb.items, "allowed=/usr/local/") != NULL);
+
+    config_teardown(orig, home);
+}
+
+static void test_config_save_config_empty_when_no_paths(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+
+    // Call save_config directly with no allowed paths
+    save_config();
+
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+
+    String_Builder sb = {0};
+    ASSERT(read_entire_file(config_path, &sb));
+    ASSERT(sb.count == 0);
+
+    config_teardown(orig, home);
+}
+
+static void test_config_save_config_persists_across_reload(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+    allow_path("/tmp/");
+    allow_path("/usr/local/");
+
+    // Reset and reload — saved state must survive
+    config_reset_for_testing();
+    parse_config();
+
+    ASSERT(is_path_allowed("/tmp/"));
+    ASSERT(is_path_allowed("/usr/local/"));
+
+    config_teardown(orig, home);
+}
+
 static void test_config_is_path_allowed_sb(void)
 {
     const char *orig = getenv("HOME");
@@ -1080,6 +1156,14 @@ int main(void)
     test_config_deny_path();
     SUITE("deny missing no-op");
     test_config_deny_path_not_present();
+    SUITE("save_config writes file");
+    test_config_save_config_writes_file();
+    SUITE("save_config removes denied path");
+    test_config_save_config_removes_denied_path();
+    SUITE("save_config empty when no paths");
+    test_config_save_config_empty_when_no_paths();
+    SUITE("save_config persists across reload");
+    test_config_save_config_persists_across_reload();
     SUITE("is_path_allowed_sb");
     test_config_is_path_allowed_sb();
     SUITE("list_paths output");
