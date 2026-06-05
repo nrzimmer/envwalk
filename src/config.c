@@ -57,7 +57,7 @@ void save_config() {
         sb_append_cstr(&sb, path);
         sb_append_cstr(&sb, "\n");
     }
-    if (!write_entire_file(configPath, sb.items, sb.count)) {
+    if (!write_entire_file(configPath, sb.data, sb.count)) {
         nob_log(NOB_ERROR, "Failed to write config file: %s", configPath);
     }
 }
@@ -73,7 +73,7 @@ bool is_path_allowed(const char *path) {
 }
 
 bool is_path_allowed_sb(const String_Builder *path) {
-    return is_path_allowed(strndup(path->items, path->count));
+    return is_path_allowed(strndup(path->data, path->count));
 }
 
 int allow_path(const char *path) {

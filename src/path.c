@@ -57,7 +57,7 @@ static char *normalize_path(const char *path, bool is_file) {
     }
     sb_append_null(&sb);
 
-    return strdup(sb.items);
+    return strdup(sb.data);
 }
 
 static char *expand_path_inner(const char *path, bool is_file) {
@@ -75,7 +75,7 @@ static char *expand_path_inner(const char *path, bool is_file) {
         sb_append_cstr(&sb, path);
     }
 
-    char *temp = strndup(sb.items, sb.count);
+    char *temp = strndup(sb.data, sb.count);
 
     sb.count = 0;
     if (temp[0] == '/') {
@@ -90,7 +90,7 @@ static char *expand_path_inner(const char *path, bool is_file) {
     }
     sb_append_null(&sb);
 
-    return normalize_path(sb.items, is_file);
+    return normalize_path(sb.data, is_file);
 }
 
 char *expand_path(const char *path) {

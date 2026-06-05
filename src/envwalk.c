@@ -28,7 +28,7 @@ static int run(StringList *unsets) {
         String_Builder sb = sb_from_string_list(parts);
         if (is_path_allowed_sb(&sb)) {
             sb_append_cstr(&sb, "/.env");
-            char *filepath = strndup(sb.items, sb.count);
+            char *filepath = strndup(sb.data, sb.count);
             filepath = expand_path_file(filepath);
             if (!parse_dotenv(&dot_env, filepath)) {
                 nob_log(NOB_ERROR, "Failed to parse .env file at %s", filepath);
@@ -92,10 +92,10 @@ int chpwd(char *old_path) {
     while (old_parts->count > same) {
         String_Builder sb = sb_from_string_list(old_parts);
         --old_parts->count;
-        char *filepath = expand_path(strndup(sb.items, sb.count));
+        char *filepath = expand_path(strndup(sb.data, sb.count));
         if (is_path_allowed(filepath)) {
             sb_append_cstr(&sb, "/.env");
-            filepath = expand_path_file(strndup(sb.items, sb.count));
+            filepath = expand_path_file(strndup(sb.data, sb.count));
             Variables dot_env = {0};
             if (parse_dotenv(&dot_env, filepath)) {
                 for (size_t j = 0; j < dot_env.count; ++j) {

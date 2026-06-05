@@ -50,11 +50,11 @@ Params *parse_params(const int argc, const char **argv) {
             sb_append_cstr(&sb, argv[i]);
             sb_append_cstr(&sb, " ");
         }
-        sb.items[sb.count - 1] = 0;
+        sb.data[sb.count - 1] = 0;
         if (action == HOOK) {
-            params->text = strdup(sb.items);
+            params->text = strdup(sb.data);
         } else {
-            String_View sv = sv_from_cstr(sb.items);
+            String_View sv = sv_from_cstr(sb.data);
             sv_chop_prefix(&sv, sv_from_cstr("\""));
             sv_chop_suffix(&sv, sv_from_cstr("\""));
             params->text = expand_path(strndup(sv.data, sv.count));
