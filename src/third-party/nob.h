@@ -424,7 +424,10 @@ NOBDEF void nob_dir_entry_close(Nob_Dir_Entry dir);
      (fa)->items[(fa)->count++] = (item))
 
 typedef struct {
-    char *items;
+    union {
+        char *items;
+        char *data;
+    };
     size_t count;
     size_t capacity;
 } Nob_String_Builder;
