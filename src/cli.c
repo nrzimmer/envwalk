@@ -42,7 +42,7 @@ Params *parse_params(const int argc, const char **argv) {
 
     Params *params = calloc(1, sizeof(Params));
     params->action = action;
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     if (argc > 2) {
         for (int i = 2; i < argc; ++i) {
             sb_append_cstr(&sb, argv[i]);
@@ -60,7 +60,6 @@ Params *parse_params(const int argc, const char **argv) {
             params->path = path_from_sv(sv);
         }
     }
-    sb_free(sb);
     return params;
 }
 
@@ -70,4 +69,8 @@ void params_free(Params *params) {
         free((void *) params->text.data);
     path_free(&params->path);
     free(params);
+}
+
+void params_cleanup(Params **params) {
+    params_free(*params);
 }

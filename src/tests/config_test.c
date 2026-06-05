@@ -43,9 +43,8 @@ static void config_teardown(const char *orig_home, char *home)
 // not take ownership).
 static bool allowed_c(const char *cstr)
 {
-    Path p = path_from_cstr(cstr);
+    _cleanup_(path_free) Path p = path_from_cstr(cstr);
     bool r = is_path_allowed(p);
-    path_free(&p);
     return r;
 }
 
@@ -146,14 +145,13 @@ static void test_config_allow_path_duplicate(void)
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     sb_append_null(&sb);
     size_t count = 0;
     const char *p = sb.items;
     while ((p = strstr(p, "allowed=")) != NULL) { count++; p++; }
     ASSERT(count == 1);
-    sb_free(sb);
     config_teardown(orig, home);
 }
 
@@ -190,12 +188,11 @@ static void test_config_save_config_writes_file(void)
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
 
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     sb_append_null(&sb);
     ASSERT(strstr(sb.items, "allowed=/tmp/") != NULL);
 
-    sb_free(sb);
     config_teardown(orig, home);
 }
 
@@ -211,13 +208,12 @@ static void test_config_save_config_removes_denied_path(void)
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
 
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     sb_append_null(&sb);
     ASSERT(strstr(sb.items, "allowed=/tmp/") == NULL);
     ASSERT(strstr(sb.items, "allowed=/usr/local/") != NULL);
 
-    sb_free(sb);
     config_teardown(orig, home);
 }
 
@@ -232,11 +228,10 @@ static void test_config_save_config_empty_when_no_paths(void)
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
 
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     ASSERT(sb.count == 0);
 
-    sb_free(sb);
     config_teardown(orig, home);
 }
 
@@ -264,19 +259,16 @@ static void test_config_is_path_allowed_sb(void)
     parse_config_quiet();
     allow_path(path_from_cstr("/tmp/"));
 
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     sb_append_cstr(&sb, "/tmp/");
 
-    Path p1 = path_from_sb(sb);
+    _cleanup_(path_free) Path p1 = path_from_sb(sb);
     ASSERT(is_path_allowed(p1));
-    path_free(&p1);
 
     sb.count = 0;
     sb_append_cstr(&sb, "/nonexistent_xyz/");
-    Path p2 = path_from_sb(sb);
+    _cleanup_(path_free) Path p2 = path_from_sb(sb);
     ASSERT(!is_path_allowed(p2));
-    path_free(&p2);
-    sb_free(sb);
 
     config_teardown(orig, home);
 }

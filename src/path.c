@@ -24,7 +24,7 @@ PathType get_path_type(const Path path) {
     if (path.type != PT_UNKNOWN)
         return path.type;
 
-    String_Builder sb = {0};
+    _cleanup_(sb_cleanup) String_Builder sb = {0};
     sb_append(&sb, '/');
     for (size_t i = 0; i < path.count; ++i) {
         nob_sb_append_sv(&sb, path.parts[i]);
@@ -34,15 +34,11 @@ PathType get_path_type(const Path path) {
     sb_append_null(&sb);
 
     struct stat st;
-    PathType result;
     if (stat(sb.data, &st) != 0)
-        result = PT_NOT_EXISTS;
-    else if (S_ISDIR(st.st_mode))
-        result = PT_DIR;
-    else
-        result = PT_FILE;
-    sb_free(sb);
-    return result;
+        return PT_NOT_EXISTS;
+    if (S_ISDIR(st.st_mode))
+        return PT_DIR;
+    return PT_FILE;
 }
 
 // Consumes `path`: kept parts are moved into the result; discarded parts
@@ -205,10 +201,8 @@ char *get_pwd_cstr(void) {
 }
 
 Path get_pwd(void) {
-    char *cwd = get_pwd_cstr();
-    Path p = path_from_cstr(cwd);
-    free(cwd);
-    return p;
+    _cleanup_(str_cleanup) char *cwd = get_pwd_cstr();
+    return path_from_cstr(cwd);
 }
 
 void path_free(Path *path) {

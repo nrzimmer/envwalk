@@ -14,6 +14,14 @@ String_Builder sb_from_string_list(const StringList *da) {
     return sb;
 }
 
+void sb_cleanup(String_Builder *sb) {
+    sb_free(*sb);
+}
+
+void str_cleanup(char **p) {
+    free(*p);
+}
+
 void *sv_data_dup(const String_View sv) {
     void *dst = malloc(sv.count);
     assert(dst != NULL);

@@ -19,14 +19,13 @@
 static int run(StringList *unsets) {
     Path pwd = get_pwd();
     const size_t pwd_count = pwd.count;
-    Variables dot_env = {0};
+    _cleanup_(vars_free) Variables dot_env = {0};
     int rc = 0;
     while (pwd.count > 0) {
         if (is_path_allowed(pwd)) {
             if (!parse_dotenv(&dot_env, pwd)) {
-                const String_Builder sb = sb_from_path(pwd, true);
+                _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(pwd, true);
                 nob_log(NOB_ERROR, "Failed to parse .env file at %s", sb.data);
-                sb_free(sb);
                 rc = 1;
                 break;
             }
@@ -35,10 +34,8 @@ static int run(StringList *unsets) {
     }
     pwd.count = pwd_count;
     path_free(&pwd);
-    if (rc != 0) {
-        vars_free(&dot_env);
+    if (rc != 0)
         return rc;
-    }
 
     if (unsets != nullptr) {
         for (size_t i = 0; i < unsets->count; ++i) {
@@ -58,19 +55,15 @@ static int run(StringList *unsets) {
     for (size_t i = 0; i < dot_env.count; ++i) {
         const String_View value = dot_env.items[i].value;
         if (value.count > 0 && value.data[0] == '~') {
-            Path path = path_from_sv(value);
-            const String_Builder sb = sb_from_path(path, true);
+            _cleanup_(path_free) Path path = path_from_sv(value);
+            _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(path, true);
             printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), sb.data);
-            sb_free(sb);
-            path_free(&path);
         } else {
-            char *value_str = strndup(value.data, value.count);
+            _cleanup_(str_cleanup) char *value_str = strndup(value.data, value.count);
             printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), value_str);
-            free(value_str);
         }
     }
 
-    vars_free(&dot_env);
     return 0;
 }
 
@@ -95,13 +88,12 @@ int chpwd(Path old_path) {
     const size_t old_count = old_path.count;
     while (old_path.count > same) {
         if (is_path_allowed(old_path)) {
-            Variables dot_env = {0};
+            _cleanup_(vars_free) Variables dot_env = {0};
             if (parse_dotenv(&dot_env, old_path)) {
                 for (size_t j = 0; j < dot_env.count; ++j) {
                     da_append(unset, strndup(dot_env.items[j].key.data, dot_env.items[j].key.count));
                 }
             }
-            vars_free(&dot_env);
         }
         --old_path.count;
     }
@@ -125,11 +117,9 @@ extern const char _binary_hook_zsh_end[];
 
 static void hook_zsh(const Path bin) {
     const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
-    char *format = strndup(_binary_hook_zsh_start, size);
-    const String_Builder sb = sb_from_path(bin, true);
+    _cleanup_(str_cleanup) char *format = strndup(_binary_hook_zsh_start, size);
+    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
-    sb_free(sb);
-    free(format);
 }
 
 extern const char _binary_hook_bash_start[];
@@ -137,11 +127,9 @@ extern const char _binary_hook_bash_end[];
 
 static void hook_bash(const Path bin) {
     const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
-    char *format = strndup(_binary_hook_bash_start, size);
-    const String_Builder sb = sb_from_path(bin, true);
+    _cleanup_(str_cleanup) char *format = strndup(_binary_hook_bash_start, size);
+    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
-    sb_free(sb);
-    free(format);
 }
 
 int hook(const Path bin, const String_View str) {
@@ -161,7 +149,7 @@ int hook(const Path bin, const String_View str) {
 
 int main(const int argc, const char **argv) {
     setup_handler();
-    Params *params = parse_params(argc, argv);
+    _cleanup_(params_cleanup) Params *params = parse_params(argc, argv);
 
     if (params->action == RUN || params->action == CHPWD)
         nob_minimal_log_level = NOB_ERROR;
@@ -193,9 +181,8 @@ int main(const int argc, const char **argv) {
             params->path = (Path) {0};
             break;
         case HOOK: {
-            Path bin = path_from_cstr(argv[0]);
+            _cleanup_(path_free) Path bin = path_from_cstr(argv[0]);
             rc = hook(bin, params->text);
-            path_free(&bin);
             break;
         }
         case HELP:
@@ -204,6 +191,5 @@ int main(const int argc, const char **argv) {
     }
 
     config_free();
-    params_free(params);
     return rc;
 }
