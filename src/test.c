@@ -696,6 +696,60 @@ static void test_config_deny_path_not_present(void)
     config_teardown(orig, home);
 }
 
+static void test_config_is_path_allowed_sb(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+    allow_path("/tmp/");
+
+    String_Builder sb = {0};
+    sb_append_cstr(&sb, "/tmp/");
+
+    ASSERT(is_path_allowed_sb(&sb));
+
+    sb.count = 0;
+    sb_append_cstr(&sb, "/nonexistent_xyz/");
+    ASSERT(!is_path_allowed_sb(&sb));
+
+    config_teardown(orig, home);
+}
+
+static void test_config_list_paths_output(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup("allowed=/tmp/\nallowed=/usr/local/\n");
+    parse_config();
+
+    char tmp[] = "/tmp/envwalk_list_XXXXXX";
+    int tmpfd = mkstemp(tmp);
+
+    // Save and redirect stdout FD
+    int saved_stdout = dup(STDOUT_FILENO);
+    fflush(stdout);
+    dup2(tmpfd, STDOUT_FILENO);
+    close(tmpfd);
+
+    list_paths();
+    fflush(stdout);
+
+    // Restore stdout FD
+    dup2(saved_stdout, STDOUT_FILENO);
+    close(saved_stdout);
+
+    // Read captured output
+    int fd = open(tmp, O_RDONLY);
+    char buf[1024] = {0};
+    read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    unlink(tmp);
+
+    ASSERT(strstr(buf, "/tmp/") != NULL);
+    ASSERT(strstr(buf, "/usr/local/") != NULL);
+
+    config_teardown(orig, home);
+}
+
 // --- cli tests ---
 
 static void test_parse_shell_zsh(void)
@@ -1026,6 +1080,10 @@ int main(void)
     test_config_deny_path();
     SUITE("deny missing no-op");
     test_config_deny_path_not_present();
+    SUITE("is_path_allowed_sb");
+    test_config_is_path_allowed_sb();
+    SUITE("list_paths output");
+    test_config_list_paths_output();
 
     printf("cli:\n");
     SUITE("shell: zsh");
