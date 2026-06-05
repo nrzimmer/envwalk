@@ -1,6 +1,10 @@
 #ifndef ENVWALK_TYPES_H
 #define ENVWALK_TYPES_H
 
+#ifdef _WIN32
+#error "envwalk does not support Windows"
+#endif
+
 #include <stddef.h>
 #include "nob.h"
 

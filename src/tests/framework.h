@@ -1,6 +1,10 @@
 #ifndef ENVWALK_TEST_FRAMEWORK_H
 #define ENVWALK_TEST_FRAMEWORK_H
 
+#ifdef _WIN32
+#error "envwalk does not support Windows"
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
