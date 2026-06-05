@@ -94,7 +94,7 @@ ARCH_STAGE = \
 	src/config.c src/config.h \
 	src/dotenv.c src/dotenv.h \
 	src/path.c src/path.h \
-	src/types.c src/types.h \
+	src/string_utils.c src/string_utils.h \
 	src/envwalk.c \
 	src/stack_trace.c src/stack_trace.h \
 	src/third-party/nob.h \

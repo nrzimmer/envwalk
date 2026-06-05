@@ -1,5 +1,6 @@
 #ifndef ENVWALK_CLI_H
 #define ENVWALK_CLI_H
+#include "path.h"
 
 typedef enum {
     ALLOW,
@@ -19,10 +20,11 @@ typedef enum {
 
 typedef struct {
     Action action;
-    char *text;
+    String_View text;
+    Path path;
 } Params;
 
 Params *parse_params(int argc, const char **argv);
-Shell parse_shell(const char *shell);
+Shell parse_shell(String_View shell);
 
 #endif

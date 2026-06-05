@@ -9,6 +9,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include "nob.h"
 
@@ -78,6 +80,23 @@ static inline char *write_temp_file(const char *content)
     write(fd, content, strlen(content));
     close(fd);
     return path;
+}
+
+// Creates a temp dir containing a .env file with content. Returns heap-alloc'd dir path (with trailing slash).
+static inline char *write_temp_dotenv_dir(const char *content)
+{
+    char *dir = strdup("/tmp/envwalk_dotenv_XXXXXX");
+    mkdtemp(dir);
+    char dotenv_path[4096];
+    snprintf(dotenv_path, sizeof(dotenv_path), "%s/.env", dir);
+    int fd = open(dotenv_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    write(fd, content, strlen(content));
+    close(fd);
+    // return with trailing slash so path_from_cstr resolves as dir
+    char *result = malloc(strlen(dir) + 2);
+    sprintf(result, "%s/", dir);
+    free(dir);
+    return result;
 }
 
 #endif

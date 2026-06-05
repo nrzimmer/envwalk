@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "cli.h"
+#include "path.h"
 #include "framework.h"
 
 static void test_parse_params_no_args(void)
@@ -10,7 +11,7 @@ static void test_parse_params_no_args(void)
     const char *argv[] = {"envwalk"};
     Params *p = parse_params(1, argv);
     ASSERT(p->action == RUN);
-    ASSERT(p->text == nullptr);
+    ASSERT(p->text.count == 0);
 }
 
 static void test_parse_params_allow_no_path(void)
@@ -19,7 +20,7 @@ static void test_parse_params_allow_no_path(void)
     Params *p = parse_params(2, argv);
     ASSERT(p->action == ALLOW);
     // cwd expansion for missing path happens in main(), not parse_params()
-    ASSERT(p->text == nullptr);
+    ASSERT(p->text.count == 0);
 }
 
 static void test_parse_params_allow_with_path(void)
@@ -27,7 +28,7 @@ static void test_parse_params_allow_with_path(void)
     const char *argv[] = {"envwalk", "allow", "/tmp"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == ALLOW);
-    ASSERT_STR_EQ(p->text, "/tmp/");
+    ASSERT_STR_EQ(sb_from_path(p->path, true).data, "/tmp/");
 }
 
 static void test_parse_params_deny_with_path(void)
@@ -35,7 +36,7 @@ static void test_parse_params_deny_with_path(void)
     const char *argv[] = {"envwalk", "deny", "/tmp"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == DENY);
-    ASSERT_STR_EQ(p->text, "/tmp/");
+    ASSERT_STR_EQ(sb_from_path(p->path, true).data, "/tmp/");
 }
 
 static void test_parse_params_list(void)
@@ -50,7 +51,7 @@ static void test_parse_params_chpwd(void)
     const char *argv[] = {"envwalk", "cd", "/old/path"};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == CHPWD);
-    ASSERT_STR_EQ(p->text, "/old/path/");
+    ASSERT_STR_EQ(sb_from_path(p->path, true).data, "/old/path/");
 }
 
 static void test_parse_params_hook(void)
@@ -59,7 +60,7 @@ static void test_parse_params_hook(void)
     Params *p = parse_params(3, argv);
     ASSERT(p->action == HOOK);
     // HOOK text is not path-expanded
-    ASSERT_STR_EQ(p->text, "zsh");
+    ASSERT_SV_EQ(p->text, "zsh");
 }
 
 static void test_parse_params_actions_case_insensitive(void)
@@ -86,7 +87,7 @@ static void test_parse_params_quoted_path(void)
     const char *argv[] = {"envwalk", "allow", "\"/tmp\""};
     Params *p = parse_params(3, argv);
     ASSERT(p->action == ALLOW);
-    ASSERT_STR_EQ(p->text, "/tmp/");
+    ASSERT_STR_EQ(sb_from_path(p->path, true).data, "/tmp/");
 }
 
 static void test_parse_params_hook_multi_arg(void)
@@ -95,7 +96,7 @@ static void test_parse_params_hook_multi_arg(void)
     const char *argv[] = {"envwalk", "hook", "bash", "--norc"};
     Params *p = parse_params(4, argv);
     ASSERT(p->action == HOOK);
-    ASSERT_STR_EQ(p->text, "bash --norc");
+    ASSERT_SV_EQ(p->text, "bash --norc");
 }
 
 static void test_parse_params_deny_no_path(void)
@@ -104,7 +105,7 @@ static void test_parse_params_deny_no_path(void)
     const char *argv[] = {"envwalk", "deny"};
     Params *p = parse_params(2, argv);
     ASSERT(p->action == DENY);
-    ASSERT(p->text == nullptr);
+    ASSERT(p->text.count == 0);
 }
 
 static void test_parse_params_chpwd_no_path(void)
@@ -113,26 +114,26 @@ static void test_parse_params_chpwd_no_path(void)
     const char *argv[] = {"envwalk", "cd"};
     Params *p = parse_params(2, argv);
     ASSERT(p->action == CHPWD);
-    ASSERT(p->text == nullptr);
+    ASSERT(p->text.count == 0);
 }
 
 static void test_parse_shell_zsh(void)
 {
-    ASSERT(parse_shell("zsh") == ZSH);
-    ASSERT(parse_shell("ZSH") == ZSH);
-    ASSERT(parse_shell("Zsh") == ZSH);
+    ASSERT(parse_shell(sv_from_cstr("zsh")) == ZSH);
+    ASSERT(parse_shell(sv_from_cstr("ZSH")) == ZSH);
+    ASSERT(parse_shell(sv_from_cstr("Zsh")) == ZSH);
 }
 
 static void test_parse_shell_bash(void)
 {
-    ASSERT(parse_shell("bash") == BASH);
-    ASSERT(parse_shell("BASH") == BASH);
+    ASSERT(parse_shell(sv_from_cstr("bash")) == BASH);
+    ASSERT(parse_shell(sv_from_cstr("BASH")) == BASH);
 }
 
 static void test_parse_shell_unknown(void)
 {
-    ASSERT(parse_shell("fish") == UNKNOWN);
-    ASSERT(parse_shell("") == UNKNOWN);
+    ASSERT(parse_shell(sv_from_cstr("fish")) == UNKNOWN);
+    ASSERT(parse_shell(sv_from_cstr("")) == UNKNOWN);
 }
 
 void run_cli_tests(void)

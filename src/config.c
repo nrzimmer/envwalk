@@ -2,21 +2,28 @@
 #include "nob.h"
 #include "path.h"
 
-static const char *configPath = nullptr;
+static Path config_path;
+
+typedef struct PathList {
+    Path *items;
+    size_t count;
+    size_t capacity;
+} PathList;
 
 typedef struct {
-    StringList allowedPaths;
+    PathList allowed_paths;
 } Config;
 
 static Config config = {0};
 
 void parse_config() {
-    configPath = expand_path_file("~/.config/envwalk");
-    NOB_ASSERT(configPath != nullptr && "config_path not set");
+    config_path = path_from_cstr("~/.config/");
+    NOB_ASSERT(config_path.count > 0 && "config_path not set");
+    const String_Builder sb_config_file = sb_from_path_with_file(config_path, sv_from_cstr("envwalk"));
 
-    StringList *allowedPaths = &config.allowedPaths;
+    PathList *allowed_paths = &config.allowed_paths;
     String_Builder sb = {0};
-    if (!read_entire_file(configPath, &sb)) {
+    if (!read_entire_file(sb_config_file.data, &sb)) {
         nob_log(NOB_INFO, "Generating a new config file");
         return;
     }
@@ -42,62 +49,66 @@ void parse_config() {
             continue;
         }
 
-        char *path = strndup(line.data, line.count);
-        da_append(allowedPaths, path);
+        const Path path = path_from_sv(line);
+        da_append(allowed_paths, path);
     }
 }
 
 void save_config() {
-    NOB_ASSERT(configPath != nullptr && "config_path not set");
+    config_path = path_from_cstr("~/.config/");
+    NOB_ASSERT(config_path.count > 0 && "config_path not set");
+    const String_Builder sb_config_file = sb_from_path_with_file(config_path, sv_from_cstr("envwalk"));
 
     String_Builder sb = {0};
-    for (size_t i = 0; i < config.allowedPaths.count; ++i) {
-        char *path = config.allowedPaths.items[i];
+    for (size_t i = 0; i < config.allowed_paths.count; ++i) {
+        const String_Builder path_sb = sb_from_path(config.allowed_paths.items[i], false);
         sb_append_cstr(&sb, "allowed=");
-        sb_append_cstr(&sb, path);
+        sb_append_buf(&sb, path_sb.data, path_sb.count);
         sb_append_cstr(&sb, "\n");
     }
-    if (!write_entire_file(configPath, sb.data, sb.count)) {
-        nob_log(NOB_ERROR, "Failed to write config file: %s", configPath);
+    if (!write_entire_file(sb_config_file.data, sb.data, sb.count)) {
+        nob_log(NOB_ERROR, "Failed to write config file: %s", sb_config_file.data);
     }
 }
 
-bool is_path_allowed(const char *path) {
-    const char *expath = expand_path(path);
-    for (size_t i = 0; i < config.allowedPaths.count; ++i) {
-        if (strcmp(config.allowedPaths.items[i], expath) == 0) {
+bool is_path_allowed(const Path path) {
+    if (get_path_type(path) != PT_DIR) {
+        const String_Builder sb = sb_from_path(path, true);
+        nob_log(NOB_WARNING, "\"%s\" must be a folder", sb.data);
+        return false;
+    }
+    for (size_t i = 0; i < config.allowed_paths.count; ++i) {
+        if (path_eq(config.allowed_paths.items[i], path)) {
             return true;
         }
     }
     return false;
 }
 
-bool is_path_allowed_sb(const String_Builder *path) {
-    return is_path_allowed(strndup(path->data, path->count));
-}
-
-int allow_path(const char *path) {
-    if (!is_directory(path)) {
-        nob_log(NOB_ERROR, "%s must be a folder", path);
+int allow_path(Path path) {
+    const String_Builder sb = sb_from_path(path, true);
+    if (path.type != PT_DIR) {
+        nob_log(NOB_ERROR, "%s must be a folder", sb.data);
         return 1;
     }
 
-    nob_log(NOB_INFO, "Adding %s to allowed paths", path);
+    nob_log(NOB_INFO, "Adding %s to allowed paths", sb.data);
 
     if (!is_path_allowed(path)) {
-        da_append(&config.allowedPaths, strdup(path));
+        da_append(&config.allowed_paths, path);
     }
 
     save_config();
     return 0;
 }
 
-int deny_path(const char *path) {
-    nob_log(NOB_INFO, "Removing %s from allowed paths", path);
+int deny_path(const Path path) {
+    String_Builder sb = sb_from_path(path, true);
+    nob_log(NOB_INFO, "Removing %s from allowed paths", sb.data);
 
-    for (size_t i = 0; i < config.allowedPaths.count; ++i) {
-        if (strcmp(config.allowedPaths.items[i], path) == 0) {
-            da_remove_unordered(&config.allowedPaths, i);
+    for (size_t i = 0; i < config.allowed_paths.count; ++i) {
+        if (path_eq(path, config.allowed_paths.items[i])) {
+            da_remove_unordered(&config.allowed_paths, i);
             break;
         }
     }
@@ -108,8 +119,8 @@ int deny_path(const char *path) {
 
 int list_paths() {
     printf("List of paths to be autoloaded:\n");
-    for (size_t i = 0; i < config.allowedPaths.count; ++i) {
-        printf("- %s\n", config.allowedPaths.items[i]);
+    for (size_t i = 0; i < config.allowed_paths.count; ++i) {
+        printf("- %s\n", sb_from_path(config.allowed_paths.items[i], true).data);
     }
     return 0;
 }
@@ -117,6 +128,6 @@ int list_paths() {
 #ifdef TESTING
 void config_reset_for_testing(void) {
     config = (Config){0};
-    configPath = nullptr;
+    config_path.count = 0;
 }
 #endif

@@ -2,13 +2,13 @@
 #define ENVWALK_CONFIG_H
 
 #include "nob.h"
+#include "path.h"
 
 void parse_config();
 void save_config();
-bool is_path_allowed_sb(const String_Builder *path);
-bool is_path_allowed(const char *path);
-int allow_path(const char *path);
-int deny_path(const char *path);
+bool is_path_allowed(Path path);
+int allow_path(Path path);
+int deny_path(Path path);
 int list_paths();
 
 #ifdef TESTING

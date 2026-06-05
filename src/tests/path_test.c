@@ -7,225 +7,207 @@
 #include "path.h"
 #include "framework.h"
 
-static void test_expand_path_empty_string(void)
+static void test_path_parts_root(void)
 {
-    // Empty string → treated as relative → expands to cwd/
-    char *cwd = get_pwd();
+    nob_set_log_handler(nob_null_log_handler);
+    Path p = path_from_cstr("/");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(p.count == 0);
+}
+
+static void test_path_parts_absolute(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    Path p = path_from_cstr("/foo/bar/baz");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(p.count == 3);
+    ASSERT_SV_EQ(p.parts[0], "foo");
+    ASSERT_SV_EQ(p.parts[1], "bar");
+    ASSERT_SV_EQ(p.parts[2], "baz");
+}
+
+static void test_path_parts_trailing_slash(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    Path p = path_from_cstr("/foo/bar/");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(p.count == 2);
+    ASSERT_SV_EQ(p.parts[0], "foo");
+    ASSERT_SV_EQ(p.parts[1], "bar");
+}
+
+static void test_path_parts_single(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    Path p = path_from_cstr("/foo");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(p.count == 1);
+    ASSERT_SV_EQ(p.parts[0], "foo");
+}
+
+static void test_path_normalize_dotdot(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("/foo/bar/../baz"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, "/foo/baz/");
+}
+
+static void test_path_normalize_dot(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("/foo/./bar"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, "/foo/bar/");
+}
+
+static void test_path_normalize_multiple_dotdot(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("/a/b/c/../../d"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, "/a/d/");
+}
+
+static void test_path_normalize_dotdot_past_root(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("/foo/../../bar"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, "/bar/");
+}
+
+static void test_path_normalize_absolute(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("/usr/local/bin"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, "/usr/local/bin/");
+}
+
+static void test_path_tilde_expansion(void)
+{
+    const char *home = getenv("HOME");
     char expected[4096];
-    snprintf(expected, sizeof(expected), "%s/", cwd);
-    char *result = expand_path("");
-    ASSERT_STR_EQ(result, expected);
-    free(cwd);
+    snprintf(expected, sizeof(expected), "%s/projects/", home);
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("~/projects"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, expected);
 }
 
-static void test_expand_path_root(void)
+static void test_path_relative_expansion(void)
 {
-    char *result = expand_path("/");
-    ASSERT_STR_EQ(result, "/");
+    char buf[4096];
+    getcwd(buf, sizeof(buf));
+    char expected[8192];
+    snprintf(expected, sizeof(expected), "%s/foo/bar/", buf);
+    nob_set_log_handler(nob_null_log_handler);
+    String_Builder sb = sb_from_path(path_from_cstr("foo/bar"), true);
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT_STR_EQ(sb.data, expected);
 }
 
-static void test_expand_path_file_absolute(void)
+static void test_path_type_file(void)
 {
-    char *result = expand_path_file("/usr/local/bin/envwalk");
-    ASSERT_STR_EQ(result, "/usr/local/bin/envwalk");
+    char *f = write_temp_file("x");
+    Path p = path_from_cstr(f);
+    ASSERT(p.type == PT_FILE);
+    String_Builder sb = sb_from_path(p, true);
+    ASSERT_STR_EQ(sb.data, f);
+    unlink(f);
+    free(f);
 }
 
-static void test_get_path_parts_empty_string(void)
+static void test_path_type_dir(void)
 {
-    StringList *parts = get_path_parts("");
-    ASSERT(parts->count == 0);
+    Path p = path_from_cstr("/tmp");
+    ASSERT(p.type == PT_DIR);
+    String_Builder sb = sb_from_path(p, true);
+    ASSERT_STR_EQ(sb.data, "/tmp/");
+}
+
+static void test_path_type_nonexistent(void)
+{
+    nob_set_log_handler(nob_null_log_handler);
+    Path p = path_from_cstr("/tmp/envwalk_no_such_xyz/");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(p.type == PT_NOT_EXISTS);
+}
+
+static void test_get_pwd_is_absolute(void)
+{
+    Path pwd = get_pwd();
+    String_Builder sb = sb_from_path(pwd, true);
+    ASSERT(sb.data[0] == '/');
 }
 
 static void test_get_pwd_matches_getcwd(void)
 {
     char buf[4096];
     getcwd(buf, sizeof(buf));
-    char *pwd = get_pwd();
-    ASSERT(pwd != nullptr);
-    ASSERT_STR_EQ(pwd, buf);
-    free(pwd);
+    char expected[8192];
+    snprintf(expected, sizeof(expected), "%s/", buf);
+    Path pwd = get_pwd();
+    String_Builder sb = sb_from_path(pwd, true);
+    ASSERT_STR_EQ(sb.data, expected);
 }
 
-static void test_get_pwd_is_absolute(void)
+static void test_path_eq_same(void)
 {
-    char *pwd = get_pwd();
-    ASSERT(pwd != nullptr);
-    ASSERT(pwd[0] == '/');
-    free(pwd);
+    nob_set_log_handler(nob_null_log_handler);
+    Path a = path_from_cstr("/foo/bar");
+    Path b = path_from_cstr("/foo/bar");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(path_eq(a, b));
 }
 
-static void test_get_path_parts_three_segments(void)
+static void test_path_eq_different(void)
 {
-    StringList *parts = get_path_parts("/foo/bar/baz");
-    ASSERT(parts->count == 3);
-    ASSERT_STR_EQ(parts->items[0], "foo");
-    ASSERT_STR_EQ(parts->items[1], "bar");
-    ASSERT_STR_EQ(parts->items[2], "baz");
-}
-
-static void test_get_path_parts_single_segment(void)
-{
-    StringList *parts = get_path_parts("/foo");
-    ASSERT(parts->count == 1);
-    ASSERT_STR_EQ(parts->items[0], "foo");
-}
-
-static void test_get_path_parts_root(void)
-{
-    StringList *parts = get_path_parts("/");
-    ASSERT(parts->count == 0);
-}
-
-static void test_get_path_parts_trailing_slash(void)
-{
-    StringList *parts = get_path_parts("/foo/bar/");
-    ASSERT(parts->count == 2);
-    ASSERT_STR_EQ(parts->items[0], "foo");
-    ASSERT_STR_EQ(parts->items[1], "bar");
-}
-
-static void test_expand_path_tilde(void)
-{
-    const char *home = getenv("HOME");
-    char expected[4096];
-    snprintf(expected, sizeof(expected), "%s/projects/", home);
-    char *result = expand_path("~/projects");
-    ASSERT_STR_EQ(result, expected);
-}
-
-static void test_expand_path_dotdot(void)
-{
-    char *result = expand_path("/foo/bar/../baz");
-    ASSERT_STR_EQ(result, "/foo/baz/");
-}
-
-static void test_expand_path_dot(void)
-{
-    char *result = expand_path("/foo/./bar");
-    ASSERT_STR_EQ(result, "/foo/bar/");
-}
-
-static void test_expand_path_multiple_dotdot(void)
-{
-    char *result = expand_path("/a/b/c/../../d");
-    ASSERT_STR_EQ(result, "/a/d/");
-}
-
-static void test_expand_path_dotdot_past_root(void)
-{
-    // Can't go above root — extra '..' is a no-op
-    char *result = expand_path("/foo/../../bar");
-    ASSERT_STR_EQ(result, "/bar/");
-}
-
-static void test_expand_path_absolute_no_tilde(void)
-{
-    char *result = expand_path("/usr/local/bin");
-    ASSERT_STR_EQ(result, "/usr/local/bin/");
-}
-
-static void test_expand_path_file_tilde(void)
-{
-    const char *home = getenv("HOME");
-    char expected[4096];
-    snprintf(expected, sizeof(expected), "%s/.env", home);
-    char *result = expand_path_file("~/.env");
-    ASSERT_STR_EQ(result, expected);
-}
-
-static void test_expand_path_file_dotdot(void)
-{
-    char *result = expand_path_file("/foo/bar/../baz.txt");
-    ASSERT_STR_EQ(result, "/foo/baz.txt");
-}
-
-static void test_expand_path_relative(void)
-{
-    char *cwd = get_pwd();
-    char expected[4096];
-    snprintf(expected, sizeof(expected), "%s/foo/bar/", cwd);
-    char *result = expand_path("foo/bar");
-    ASSERT_STR_EQ(result, expected);
-    free(cwd);
-}
-
-static void test_expand_path_file_relative(void)
-{
-    char *cwd = get_pwd();
-    char expected[4096];
-    snprintf(expected, sizeof(expected), "%s/foo/bar.txt", cwd);
-    char *result = expand_path_file("foo/bar.txt");
-    ASSERT_STR_EQ(result, expected);
-    free(cwd);
-}
-
-static void test_is_directory_with_dir(void)
-{
-    ASSERT(is_directory("/tmp") == 1);
-}
-
-static void test_is_directory_with_file(void)
-{
-    char *path = write_temp_file("x");
-    ASSERT(is_directory(path) == 0);
-    unlink(path);
-    free(path);
-}
-
-static void test_is_directory_nonexistent(void)
-{
-    ASSERT(is_directory("/tmp/envwalk_no_such_dir_xyz") == 0);
+    nob_set_log_handler(nob_null_log_handler);
+    Path a = path_from_cstr("/foo/bar");
+    Path b = path_from_cstr("/foo/baz");
+    nob_set_log_handler(nob_default_log_handler);
+    ASSERT(!path_eq(a, b));
 }
 
 void run_path_tests(void)
 {
     printf("path:\n");
-    SUITE("expand: empty string → cwd");
-    test_expand_path_empty_string();
-    SUITE("expand: root");
-    test_expand_path_root();
-    SUITE("expand_file: absolute no tilde");
-    test_expand_path_file_absolute();
-    SUITE("parts: empty string → zero segments");
-    test_get_path_parts_empty_string();
+    SUITE("parts: root → 0 segments");
+    test_path_parts_root();
+    SUITE("parts: absolute 3 segments");
+    test_path_parts_absolute();
+    SUITE("parts: trailing slash stripped");
+    test_path_parts_trailing_slash();
+    SUITE("parts: single segment");
+    test_path_parts_single();
+    SUITE("normalize: dotdot");
+    test_path_normalize_dotdot();
+    SUITE("normalize: dot");
+    test_path_normalize_dot();
+    SUITE("normalize: multiple dotdot");
+    test_path_normalize_multiple_dotdot();
+    SUITE("normalize: dotdot past root");
+    test_path_normalize_dotdot_past_root();
+    SUITE("normalize: absolute no tilde");
+    test_path_normalize_absolute();
+    SUITE("expand: tilde");
+    test_path_tilde_expansion();
+    SUITE("expand: relative");
+    test_path_relative_expansion();
+    SUITE("type: file detected");
+    test_path_type_file();
+    SUITE("type: dir detected");
+    test_path_type_dir();
+    SUITE("type: nonexistent");
+    test_path_type_nonexistent();
+    SUITE("get_pwd: absolute");
+    test_get_pwd_is_absolute();
     SUITE("get_pwd: matches getcwd");
     test_get_pwd_matches_getcwd();
-    SUITE("get_pwd: is absolute path");
-    test_get_pwd_is_absolute();
-    SUITE("parts: three segments");
-    test_get_path_parts_three_segments();
-    SUITE("parts: single segment");
-    test_get_path_parts_single_segment();
-    SUITE("parts: root");
-    test_get_path_parts_root();
-    SUITE("parts: trailing slash");
-    test_get_path_parts_trailing_slash();
-    SUITE("expand: tilde");
-    test_expand_path_tilde();
-    SUITE("expand: dotdot");
-    test_expand_path_dotdot();
-    SUITE("expand: dot");
-    test_expand_path_dot();
-    SUITE("expand: multiple dotdot");
-    test_expand_path_multiple_dotdot();
-    SUITE("expand: dotdot past root");
-    test_expand_path_dotdot_past_root();
-    SUITE("expand: absolute");
-    test_expand_path_absolute_no_tilde();
-    SUITE("expand_file: tilde");
-    test_expand_path_file_tilde();
-    SUITE("expand_file: dotdot");
-    test_expand_path_file_dotdot();
-    SUITE("expand: relative");
-    test_expand_path_relative();
-    SUITE("expand_file: relative");
-    test_expand_path_file_relative();
-
-    printf("is_directory:\n");
-    SUITE("directory");
-    test_is_directory_with_dir();
-    SUITE("file");
-    test_is_directory_with_file();
-    SUITE("nonexistent");
-    test_is_directory_nonexistent();
+    SUITE("path_eq: same paths");
+    test_path_eq_same();
+    SUITE("path_eq: different paths");
+    test_path_eq_different();
 }

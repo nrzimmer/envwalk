@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "types.h"
+#include "string_utils.h"
 #include "framework.h"
 
 static void test_sb_from_string_list_empty(void)

@@ -8,25 +8,25 @@
 #include "nob.h"
 #include "path.h"
 
-static Action parse_action(const char *action) {
-    if (strcasecmp(action, "allow") == 0) return ALLOW;
-    if (strcasecmp(action, "deny") == 0) return DENY;
-    if (strcasecmp(action, "list") == 0) return LIST;
-    if (strcasecmp(action, "cd") == 0) return CHPWD;
-    if (strcasecmp(action, "hook") == 0) return HOOK;
+static Action parse_action(const String_View action) {
+    if (sv_eq_cstr_ci(action, "allow")) return ALLOW;
+    if (sv_eq_cstr_ci(action, "deny")) return DENY;
+    if (sv_eq_cstr_ci(action, "list")) return LIST;
+    if (sv_eq_cstr_ci(action, "cd")) return CHPWD;
+    if (sv_eq_cstr_ci(action, "hook")) return HOOK;
     return HELP;
 }
 
-Shell parse_shell(const char *shell) {
-    if (strcasecmp(shell, "zsh") == 0) return ZSH;
-    if (strcasecmp(shell, "bash") == 0) return BASH;
+Shell parse_shell(const String_View shell) {
+    if (sv_eq_cstr_ci(shell, "zsh")) return ZSH;
+    if (sv_eq_cstr_ci(shell, "bash")) return BASH;
     return UNKNOWN;
 }
 
 Params *parse_params(const int argc, const char **argv) {
     Action action = RUN;
     if (argc > 1) {
-        action = parse_action(argv[1]);
+        action = parse_action(sv_from_cstr(argv[1]));
     }
 
     if (action == HELP) {
@@ -43,21 +43,22 @@ Params *parse_params(const int argc, const char **argv) {
 
     Params *params = calloc(1, sizeof(Params));
     params->action = action;
-    params->text = nullptr;
     String_Builder sb = {0};
     if (argc > 2) {
         for (int i = 2; i < argc; ++i) {
             sb_append_cstr(&sb, argv[i]);
             sb_append_cstr(&sb, " ");
         }
-        sb.data[sb.count - 1] = 0;
+        sb.count--;
         if (action == HOOK) {
-            params->text = strdup(sb.data);
+            params->text = string_from_sb(sb);
         } else {
-            String_View sv = sv_from_cstr(sb.data);
+            sb_append_null(&sb);
+            sb.count--;
+            String_View sv = nob_sv_from_parts(sb.data, sb.count);
             sv_chop_prefix(&sv, sv_from_cstr("\""));
             sv_chop_suffix(&sv, sv_from_cstr("\""));
-            params->text = expand_path(strndup(sv.data, sv.count));
+            params->path = path_from_sv(sv);
         }
     }
     return params;

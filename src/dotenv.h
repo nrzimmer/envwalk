@@ -2,6 +2,7 @@
 #define ENVWALK_DOTENV_H
 
 #include "nob.h"
+#include "path.h"
 
 typedef struct {
     String_View key;
@@ -15,11 +16,6 @@ typedef struct {
     size_t capacity;
 } Variables;
 
-typedef struct {
-    char *path;
-    Variables *variables;
-} DotEnv;
-
-bool parse_dotenv(Variables *variables, char *filepath);
+bool parse_dotenv(Variables *variables, Path folder);
 
 #endif

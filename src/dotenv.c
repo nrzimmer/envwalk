@@ -1,9 +1,13 @@
 #include "dotenv.h"
 #include "nob.h"
+#include "path.h"
 
-bool parse_dotenv(Variables *variables, char *filepath) {
+bool parse_dotenv(Variables *variables, const Path folder) {
+    if (get_path_type(folder) != PT_DIR)
+        return false;
     String_Builder sb = {0};
-    if (!read_entire_file(filepath, &sb)) {
+    const String_Builder filepath = sb_from_path_with_file(folder, sv_from_cstr(".env"));
+    if (!read_entire_file(filepath.data, &sb)) {
         return false;
     }
     String_View sv = sb_to_sv(sb);
@@ -32,7 +36,7 @@ bool parse_dotenv(Variables *variables, char *filepath) {
 
         if (found) {
             nob_log(NOB_WARNING, "Duplicate key: %.*s with value: %.*s from %s\n\tUsing value: %.*s from %.*s",
-                    (int) key.count, key.data, (int) line.count, line.data, filepath, (int) found->value.count,
+                    (int) key.count, key.data, (int) line.count, line.data, filepath.data, (int) found->value.count,
                     found->value.data, (int) found->path.count, found->path.data);
             continue;
         }
@@ -40,7 +44,7 @@ bool parse_dotenv(Variables *variables, char *filepath) {
         sv_chop_prefix(&line, sv_from_cstr("\""));
         sv_chop_suffix(&line, sv_from_cstr("\""));
 
-        const KeyValuePair kv = {key, line, sv_from_cstr(filepath)};
+        const KeyValuePair kv = {key, line, sv_from_cstr(filepath.data)};
 
         da_append(variables, kv);
     }

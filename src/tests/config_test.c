@@ -53,7 +53,7 @@ static void test_config_parse_missing_value_line(void)
     nob_minimal_log_level = NOB_ERROR;
     parse_config();
     nob_minimal_log_level = saved;
-    ASSERT(is_path_allowed("/tmp/"));
+    ASSERT(is_path_allowed(path_from_cstr("/tmp/")));
     config_teardown(orig, home);
 }
 
@@ -63,12 +63,9 @@ static void test_config_is_path_allowed_relative(void)
     char *home = config_setup(nullptr);
     parse_config_quiet();
 
-    // allow_path expects a pre-expanded (trailing-slash) path, as main() provides
-    char *expanded = expand_path(".");
-    allow_path(expanded);
+    allow_path(path_from_cstr("."));
 
-    // "." and the expanded cwd path both refer to the same directory
-    ASSERT(is_path_allowed("."));
+    ASSERT(is_path_allowed(path_from_cstr(".")));
 
     config_teardown(orig, home);
 }
@@ -78,7 +75,7 @@ static void test_config_empty(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    ASSERT(!is_path_allowed("/tmp/"));
+    ASSERT(!is_path_allowed(path_from_cstr("/tmp/")));
     config_teardown(orig, home);
 }
 
@@ -87,9 +84,9 @@ static void test_config_parse_allowed_paths(void)
     const char *orig = getenv("HOME");
     char *home = config_setup("allowed=/tmp/\nallowed=/usr/local/\n");
     parse_config();
-    ASSERT(is_path_allowed("/tmp/"));
-    ASSERT(is_path_allowed("/usr/local/"));
-    ASSERT(!is_path_allowed("/home/"));
+    ASSERT(is_path_allowed(path_from_cstr("/tmp/")));
+    ASSERT(is_path_allowed(path_from_cstr("/usr/local/")));
+    ASSERT(!is_path_allowed(path_from_cstr("/home/")));
     config_teardown(orig, home);
 }
 
@@ -98,8 +95,8 @@ static void test_config_parse_skips_comments_and_unknowns(void)
     const char *orig = getenv("HOME");
     char *home = config_setup("# comment\n\nunknown=foo\nallowed=/tmp/\n");
     parse_config();
-    ASSERT(is_path_allowed("/tmp/"));
-    ASSERT(!is_path_allowed("foo"));
+    ASSERT(is_path_allowed(path_from_cstr("/tmp/")));
+    ASSERT(!is_path_allowed(path_from_cstr("foo")));
     config_teardown(orig, home);
 }
 
@@ -108,9 +105,9 @@ static void test_config_allow_path(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    ASSERT(!is_path_allowed("/tmp/"));
-    allow_path("/tmp/");
-    ASSERT(is_path_allowed("/tmp/"));
+    ASSERT(!is_path_allowed(path_from_cstr("/tmp/")));
+    allow_path(path_from_cstr("/tmp/"));
+    ASSERT(is_path_allowed(path_from_cstr("/tmp/")));
     config_teardown(orig, home);
 }
 
@@ -121,7 +118,7 @@ static void test_config_allow_path_non_directory(void)
     parse_config_quiet();
     char *f = write_temp_file("x");
     nob_set_log_handler(nob_null_log_handler);
-    ASSERT(allow_path(f) == 1); // must fail — not a directory
+    ASSERT(allow_path(path_from_cstr(f)) == 1); // must fail — not a directory
     nob_set_log_handler(nob_default_log_handler);
     unlink(f);
     free(f);
@@ -133,19 +130,17 @@ static void test_config_allow_path_duplicate(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
-    allow_path("/tmp/"); // second call should be a no-op
+    allow_path(path_from_cstr("/tmp/"));
+    allow_path(path_from_cstr("/tmp/")); // second call should be a no-op
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
-    Variables vars = {0};
-    parse_dotenv(&vars, config_path);
+    String_Builder sb = {0};
+    ASSERT(read_entire_file(config_path, &sb));
+    sb_append_null(&sb);
     size_t count = 0;
-    for (size_t i = 0; i < vars.count; ++i)
-    {
-        if (sv_eq(vars.items[i].key, sv_from_cstr("allowed")))
-            count++;
-    }
+    const char *p = sb.items;
+    while ((p = strstr(p, "allowed=")) != NULL) { count++; p++; }
     ASSERT(count == 1);
     config_teardown(orig, home);
 }
@@ -155,10 +150,10 @@ static void test_config_deny_path(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
-    ASSERT(is_path_allowed("/tmp/"));
-    deny_path("/tmp/");
-    ASSERT(!is_path_allowed("/tmp/"));
+    allow_path(path_from_cstr("/tmp/"));
+    ASSERT(is_path_allowed(path_from_cstr("/tmp/")));
+    deny_path(path_from_cstr("/tmp/"));
+    ASSERT(!is_path_allowed(path_from_cstr("/tmp/")));
     config_teardown(orig, home);
 }
 
@@ -168,7 +163,7 @@ static void test_config_deny_path_not_present(void)
     char *home = config_setup(nullptr);
     parse_config_quiet();
     nob_set_log_handler(nob_null_log_handler);
-    ASSERT(deny_path("/tmp/") == 0); // no-op — path was never added
+    ASSERT(deny_path(path_from_cstr("/tmp/")) == 0); // no-op — path was never added
     nob_set_log_handler(nob_default_log_handler);
     config_teardown(orig, home);
 }
@@ -178,7 +173,7 @@ static void test_config_save_config_writes_file(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
+    allow_path(path_from_cstr("/tmp/"));
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
@@ -196,9 +191,9 @@ static void test_config_save_config_removes_denied_path(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
-    allow_path("/usr/local/");
-    deny_path("/tmp/");
+    allow_path(path_from_cstr("/tmp/"));
+    allow_path(path_from_cstr("/usr/local/"));
+    deny_path(path_from_cstr("/tmp/"));
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
@@ -235,14 +230,14 @@ static void test_config_save_config_persists_across_reload(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
-    allow_path("/usr/local/");
+    allow_path(path_from_cstr("/tmp/"));
+    allow_path(path_from_cstr("/usr/local/"));
 
     config_reset_for_testing();
     parse_config();
 
-    ASSERT(is_path_allowed("/tmp/"));
-    ASSERT(is_path_allowed("/usr/local/"));
+    ASSERT(is_path_allowed(path_from_cstr("/tmp/")));
+    ASSERT(is_path_allowed(path_from_cstr("/usr/local/")));
 
     config_teardown(orig, home);
 }
@@ -252,16 +247,16 @@ static void test_config_is_path_allowed_sb(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
+    allow_path(path_from_cstr("/tmp/"));
 
     String_Builder sb = {0};
     sb_append_cstr(&sb, "/tmp/");
 
-    ASSERT(is_path_allowed_sb(&sb));
+    ASSERT(is_path_allowed(path_from_sb(sb)));
 
     sb.count = 0;
     sb_append_cstr(&sb, "/nonexistent_xyz/");
-    ASSERT(!is_path_allowed_sb(&sb));
+    ASSERT(!is_path_allowed(path_from_sb(sb)));
 
     config_teardown(orig, home);
 }
@@ -336,11 +331,11 @@ static void test_config_deny_removes_only_target(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path("/tmp/");
-    allow_path("/usr/local/");
-    deny_path("/tmp/");
-    ASSERT(!is_path_allowed("/tmp/"));
-    ASSERT(is_path_allowed("/usr/local/"));
+    allow_path(path_from_cstr("/tmp/"));
+    allow_path(path_from_cstr("/usr/local/"));
+    deny_path(path_from_cstr("/tmp/"));
+    ASSERT(!is_path_allowed(path_from_cstr("/tmp/")));
+    ASSERT(is_path_allowed(path_from_cstr("/usr/local/")));
     config_teardown(orig, home);
 }
 

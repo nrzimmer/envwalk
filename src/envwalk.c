@@ -17,25 +17,17 @@
 #include "stack_trace.h"
 
 static int run(StringList *unsets) {
-    const char *pwd = get_pwd();
-    NOB_ASSERT(pwd != nullptr && "Could not get current working directory.");
-    pwd = expand_path(pwd);
-
-    StringList *parts = get_path_parts(pwd);
+    Path pwd = get_pwd();
     Variables dot_env = {0};
-
-    while (parts->count > 0) {
-        String_Builder sb = sb_from_string_list(parts);
-        if (is_path_allowed_sb(&sb)) {
-            sb_append_cstr(&sb, "/.env");
-            char *filepath = strndup(sb.data, sb.count);
-            filepath = expand_path_file(filepath);
-            if (!parse_dotenv(&dot_env, filepath)) {
-                nob_log(NOB_ERROR, "Failed to parse .env file at %s", filepath);
+    while (pwd.count > 0) {
+        if (is_path_allowed(pwd)) {
+            if (!parse_dotenv(&dot_env, pwd)) {
+                String_Builder sb = sb_from_path(pwd, true);
+                nob_log(NOB_ERROR, "Failed to parse .env file at %s", sb.data);
                 return 1;
             }
         }
-        --parts->count;
+        --pwd.count;
     }
 
     if (unsets != nullptr) {
@@ -53,11 +45,14 @@ static int run(StringList *unsets) {
         }
     }
 
+    String_Builder sb = {0};
     for (size_t i = 0; i < dot_env.count; ++i) {
         String_View value = dot_env.items[i].value;
         char *value_str;
         if (value.count > 0 && value.data[0] == '~') {
-            value_str = expand_path_file(strndup(value.data, value.count));
+            const Path path = path_from_sv(value);
+            sb = sb_from_path(path, true);
+            value_str = sb.data;
         } else {
             value_str = strndup(value.data, value.count);
         }
@@ -67,20 +62,16 @@ static int run(StringList *unsets) {
     return 0;
 }
 
-int chpwd(char *old_path) {
+int chpwd(Path old_path) {
     // First we need to traverse the old_path back until we find a common folder with the current path
     // If there is an allowed folder in each partial path, we need to unset the variables on that folder env
 
-    StringList *old_parts = get_path_parts(old_path);
-    const char *pwd = get_pwd();
-    NOB_ASSERT(pwd != nullptr && "Could not get current working directory.");
-    pwd = expand_path(pwd);
-    const StringList *parts = get_path_parts(pwd);
+    const Path pwd = get_pwd();
 
-    const size_t max = old_parts->count < parts->count ? old_parts->count : parts->count;
+    const size_t max = old_path.count < pwd.count ? old_path.count : pwd.count;
     size_t same = 0;
     for (size_t i = 0; i < max; ++i) {
-        if (strcmp(old_parts->items[i], parts->items[i]) == 0) {
+        if (nob_sv_eq(old_path.items[i], pwd.items[i])) {
             same = i + 1;
         } else {
             break;
@@ -89,20 +80,16 @@ int chpwd(char *old_path) {
 
     StringList *unset = calloc(1, sizeof(StringList));
 
-    while (old_parts->count > same) {
-        String_Builder sb = sb_from_string_list(old_parts);
-        --old_parts->count;
-        char *filepath = expand_path(strndup(sb.data, sb.count));
-        if (is_path_allowed(filepath)) {
-            sb_append_cstr(&sb, "/.env");
-            filepath = expand_path_file(strndup(sb.data, sb.count));
+    while (old_path.count > same) {
+        if (is_path_allowed(old_path)) {
             Variables dot_env = {0};
-            if (parse_dotenv(&dot_env, filepath)) {
+            if (parse_dotenv(&dot_env, old_path)) {
                 for (size_t j = 0; j < dot_env.count; ++j) {
                     da_append(unset, strndup(dot_env.items[j].key.data, dot_env.items[j].key.count));
                 }
             }
         }
+        --old_path.count;
     }
 
     // Now we run normally to set all the variables in current path
@@ -113,24 +100,26 @@ int chpwd(char *old_path) {
 extern const char _binary_hook_zsh_start[];
 extern const char _binary_hook_zsh_end[];
 
-static void hook_zsh(const char *bin) {
+static void hook_zsh(const Path bin) {
     const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
     char *format = strndup(_binary_hook_zsh_start, size);
-    printf(format, bin, bin);
+    const String_Builder sb = sb_from_path(bin, true);
+    printf(format, sb.data, sb.data);
     free(format);
 }
 
 extern const char _binary_hook_bash_start[];
 extern const char _binary_hook_bash_end[];
 
-static void hook_bash(const char *bin) {
+static void hook_bash(const Path bin) {
     const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
     char *format = strndup(_binary_hook_bash_start, size);
-    printf(format, bin, bin);
+    const String_Builder sb = sb_from_path(bin, true);
+    printf(format, sb.data, sb.data);
     free(format);
 }
 
-int hook(const char *bin, const char *str) {
+int hook(const Path bin, const String_View str) {
     const Shell shell = parse_shell(str);
     switch (shell) {
         case ZSH:
@@ -140,7 +129,7 @@ int hook(const char *bin, const char *str) {
             hook_bash(bin);
             return 0;
         default:
-            fprintf(stderr, "Unsupported shell: %s\n", str);
+            fprintf(stderr, "Unsupported shell: "SV_Fmt"\n", SV_Arg(str));
             return 1;
     }
 }
@@ -154,25 +143,23 @@ int main(const int argc, const char **argv) {
 
     parse_config();
 
-    if (params->text == nullptr && (params->action == ALLOW || params->action == DENY)) {
-        const char *pwd = get_pwd();
-        NOB_ASSERT(pwd != nullptr && "Could not get current working directory.");
-        params->text = expand_path(pwd);
+    if (params->text.count == 0 && (params->action == ALLOW || params->action == DENY)) {
+        params->path = get_pwd();
     }
 
     switch (params->action) {
         case ALLOW:
-            return allow_path(params->text);
+            return allow_path(params->path);
         case DENY:
-            return deny_path(params->text);
+            return deny_path(params->path);
         case LIST:
             return list_paths();
         case RUN:
             return run(nullptr);
         case CHPWD:
-            return chpwd(params->text);
+            return chpwd(params->path);
         case HOOK:
-            return hook(expand_path_file(argv[0]), params->text);
+            return hook(path_from_cstr(argv[0]), params->text);
         case HELP:
         default:
 
