@@ -738,6 +738,36 @@ static void test_config_deny_path_not_present(void)
     config_teardown(orig, home);
 }
 
+static void test_config_parse_missing_value_line(void)
+{
+    // Config line with no '=' is skipped; other valid paths still loaded
+    const char *orig = getenv("HOME");
+    char *home = config_setup("keyonly\nallowed=/tmp/\n");
+    int saved = nob_minimal_log_level;
+    nob_minimal_log_level = NOB_ERROR;
+    parse_config();
+    nob_minimal_log_level = saved;
+    ASSERT(is_path_allowed("/tmp/"));
+    config_teardown(orig, home);
+}
+
+static void test_config_is_path_allowed_relative(void)
+{
+    // is_path_allowed calls expand_path internally; relative path that
+    // expands to an allowed path must return true
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+    parse_config_quiet();
+
+    // allow_path expects a pre-expanded (trailing-slash) path, as main() provides
+    char *expanded = expand_path(".");
+    allow_path(expanded);
+
+    // "." and the expanded cwd path both refer to the same directory
+    ASSERT(is_path_allowed("."));
+    config_teardown(orig, home);
+}
+
 static void test_config_save_config_writes_file(void)
 {
     const char *orig = getenv("HOME");
@@ -1192,6 +1222,10 @@ int main(void)
     test_parse_params_hook_multi_arg();
 
     printf("config:\n");
+    SUITE("parse: missing value line skipped");
+    test_config_parse_missing_value_line();
+    SUITE("is_path_allowed: relative path");
+    test_config_is_path_allowed_relative();
     SUITE("empty config");
     test_config_empty();
     SUITE("parse allowed paths");
