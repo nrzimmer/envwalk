@@ -233,6 +233,19 @@ static void test_dotenv_path_recorded(void)
     free(path);
 }
 
+static void test_dotenv_empty_key(void)
+{
+    // Line starting with '=' has empty key and non-empty value — stored as-is
+    char *path = write_temp_file("=value\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT(vars.items[0].key.count == 0);
+    ASSERT_SV_EQ(vars.items[0].value, "value");
+    unlink(path);
+    free(path);
+}
+
 static void test_dotenv_missing_value_skipped(void)
 {
     // Line with no '=' is skipped with a warning
@@ -1060,6 +1073,8 @@ int main(void)
     test_dotenv_value_contains_equals();
     SUITE("path recorded");
     test_dotenv_path_recorded();
+    SUITE("empty key stored");
+    test_dotenv_empty_key();
     SUITE("missing value skipped");
     test_dotenv_missing_value_skipped();
     SUITE("single-quoted value not stripped");
