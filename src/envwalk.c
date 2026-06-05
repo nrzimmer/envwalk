@@ -61,7 +61,7 @@ static int run(StringList *unsets) {
         } else {
             value_str = strndup(value.data, value.count);
         }
-        printf("export %.*s=\"%s\"\n", sv_dot_star(dot_env.items[i].key), value_str);
+        printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), value_str);
     }
 
     return 0;

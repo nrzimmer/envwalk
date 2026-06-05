@@ -4,8 +4,6 @@
 #include <stddef.h>
 #include "nob.h"
 
-#define sv_dot_star(sv) (int)(sv).count, (sv).data
-
 typedef struct {
     char **items;
     size_t count;
