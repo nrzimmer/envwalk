@@ -233,6 +233,64 @@ static void test_dotenv_path_recorded(void)
     free(path);
 }
 
+static void test_dotenv_missing_value_skipped(void)
+{
+    // Line with no '=' is skipped with a warning
+    int saved = nob_minimal_log_level;
+    nob_minimal_log_level = NOB_ERROR;
+    char *path = write_temp_file("KEYONLY\nA=1\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT_SV_EQ(vars.items[0].key, "A");
+    unlink(path);
+    free(path);
+    nob_minimal_log_level = saved;
+}
+
+static void test_dotenv_single_quoted_value_not_stripped(void)
+{
+    // Only double quotes are stripped; single quotes remain in value
+    char *path = write_temp_file("KEY='hello world'\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT_SV_EQ(vars.items[0].value, "'hello world'");
+    unlink(path);
+    free(path);
+}
+
+static void test_dotenv_export_prefix_not_stripped(void)
+{
+    // parse_dotenv does not strip 'export ' prefix;
+    // the key becomes "export KEY" and value becomes the rest
+    int saved = nob_minimal_log_level;
+    nob_minimal_log_level = NOB_ERROR;
+    char *path = write_temp_file("export KEY=value\n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT_SV_EQ(vars.items[0].key, "export KEY");
+    ASSERT_SV_EQ(vars.items[0].value, "value");
+    unlink(path);
+    free(path);
+    nob_minimal_log_level = saved;
+}
+
+static void test_dotenv_whitespace_trimmed_from_line(void)
+{
+    // sv_trim strips leading/trailing whitespace from the whole line,
+    // so trailing spaces after the value are removed
+    char *path = write_temp_file("  KEY=value   \n");
+    Variables vars = {0};
+    ASSERT(parse_dotenv(&vars, path));
+    ASSERT(vars.count == 1);
+    ASSERT_SV_EQ(vars.items[0].key, "KEY");
+    ASSERT_SV_EQ(vars.items[0].value, "value");
+    unlink(path);
+    free(path);
+}
+
 // --- path tests ---
 
 static void test_get_path_parts_three_segments(void)
@@ -854,6 +912,14 @@ int main(void)
     test_dotenv_value_contains_equals();
     SUITE("path recorded");
     test_dotenv_path_recorded();
+    SUITE("missing value skipped");
+    test_dotenv_missing_value_skipped();
+    SUITE("single-quoted value not stripped");
+    test_dotenv_single_quoted_value_not_stripped();
+    SUITE("export prefix not stripped");
+    test_dotenv_export_prefix_not_stripped();
+    SUITE("whitespace trimmed from line");
+    test_dotenv_whitespace_trimmed_from_line();
 
     printf("path:\n");
     SUITE("parts: three segments");
