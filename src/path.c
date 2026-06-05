@@ -37,7 +37,7 @@ static char *normalize_path(const char *path, bool is_file) {
                     --segments.count;
                 }
             } else {
-                da_append(&segments, strdup(temp_sv_to_cstr(token)));
+                da_append(&segments, strndup(token.data, token.count));
             }
         }
         if (sv.count == 0)
