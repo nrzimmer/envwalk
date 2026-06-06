@@ -20,6 +20,6 @@ typedef struct {
 } Variables;
 
 bool parse_dotenv(Variables *variables, Path folder);
-void vars_free(Variables *variables);
+void Variables_free(Variables *variables);
 
 #endif

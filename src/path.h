@@ -20,6 +20,7 @@ typedef struct Path{
     size_t capacity;
     char first_char;
     PathType type;
+    char *full_path;
 } Path;
 
 String_Builder sb_from_path(Path path, bool null_terminated);
@@ -34,6 +35,7 @@ bool path_eq(Path a, Path b);
 
 Path get_pwd(void);
 Path path_from_sv(String_View sv);
-void path_free(Path *path);
+Path path_copy(Path path);
+void Path_free(Path *path);
 
 #endif

@@ -24,7 +24,7 @@ PathType get_path_type(const Path path) {
     if (path.type != PT_UNKNOWN)
         return path.type;
 
-    _cleanup_(sb_cleanup) String_Builder sb = {0};
+    Defer(String_Builder) sb = {0};
     sb_append(&sb, '/');
     for (size_t i = 0; i < path.count; ++i) {
         nob_sb_append_sv(&sb, path.parts[i]);
@@ -109,7 +109,7 @@ Path expand(const Path path) {
 }
 
 Path path_from_sv(String_View sv) {
-    const bool is_absolute = sv.count > 0 && sv.data[0] == '/';
+    bool is_absolute = sv.count > 0 && sv.data[0] == '/';
     sv_chop_prefix(&sv, sv_from_cstr("/"));
     sv_chop_suffix(&sv, sv_from_cstr("/"));
 
@@ -140,7 +140,7 @@ String_Builder sb_from_path_with_file(const Path path, const String_View file) {
     UNREACHABLE("Should not append a file to a path that is not a directory");
 }
 
-String_Builder sb_from_path(Path path, const bool null_terminated) {
+String_Builder sb_from_path(Path path, bool null_terminated) {
     if (path.type == PT_UNKNOWN)
         path.type = get_path_type(path);
 
@@ -173,7 +173,7 @@ char *get_pwd_cstr(void) {
         return buf;
     }
 
-    const int err = errno;
+    int err = errno;
 
     buf = realpath(".", nullptr);
     if (buf != nullptr) {
@@ -183,7 +183,7 @@ char *get_pwd_cstr(void) {
 #if defined(__linux__)
     {
         char tmp[PATH_MAX];
-        const ssize_t len = readlink("/proc/self/cwd", tmp, sizeof(tmp) - 1);
+        ssize_t len = readlink("/proc/self/cwd", tmp, sizeof(tmp) - 1);
         if (len != -1) {
             tmp[len] = '\0';
             buf = malloc(len + 1);
@@ -201,11 +201,25 @@ char *get_pwd_cstr(void) {
 }
 
 Path get_pwd(void) {
-    _cleanup_(str_cleanup) char *cwd = get_pwd_cstr();
-    return path_from_cstr(cwd);
+    char *cwd = get_pwd_cstr();
+    Path p = path_from_cstr(cwd);
+    free(cwd);
+    return p;
 }
 
-void path_free(Path *path) {
+// Deep-copies `path`, duplicating the parts array and each part's backing
+// string, so the result can be freed independently of the original.
+Path path_copy(const Path path) {
+    Path copy = path;
+    copy.items = nullptr;
+    copy.count = 0;
+    copy.capacity = 0;
+    for (size_t i = 0; i < path.count; ++i)
+        da_append(&copy, string_from_sv(path.parts[i]));
+    return copy;
+}
+
+void Path_free(Path *path) {
     for (size_t i = 0; i < path->count; ++i)
         free((void *) path->parts[i].data);
     da_free(*path);

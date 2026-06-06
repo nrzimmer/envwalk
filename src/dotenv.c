@@ -5,13 +5,10 @@
 bool parse_dotenv(Variables *variables, const Path folder) {
     if (get_path_type(folder) != PT_DIR)
         return false;
-    String_Builder sb = {0};
-    const String_Builder filepath = sb_from_path_with_file(folder, sv_from_cstr(".env"));
-    if (!read_entire_file(filepath.data, &sb)) {
-        sb_free(sb);
-        sb_free(filepath);
+    Defer(String_Builder) sb = {0};
+    Defer(String_Builder) filepath = sb_from_path_with_file(folder, sv_from_cstr(".env"));
+    if (!read_entire_file(filepath.data, &sb))
         return false;
-    }
     String_View sv = sb_to_sv(sb);
     while (sv.count > 0) {
         String_View line = sv_chop_by_delim(&sv, '\n');
@@ -54,10 +51,12 @@ bool parse_dotenv(Variables *variables, const Path folder) {
     // into `filepath`. vars_free releases them.
     da_append(&variables->backings, sb.items);
     da_append(&variables->backings, filepath.items);
+    sb = (String_Builder){0};       // ownership moved into variables->backings
+    filepath = (String_Builder){0};
     return true;
 }
 
-void vars_free(Variables *variables) {
+void Variables_free(Variables *variables) {
     for (size_t i = 0; i < variables->backings.count; ++i)
         free(variables->backings.items[i]);
     da_free(variables->backings);

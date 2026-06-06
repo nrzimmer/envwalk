@@ -11,14 +11,14 @@
 // Caller frees the returned String_Builder.
 static String_Builder sb_of(const char *cstr)
 {
-    _cleanup_(path_free) Path p = path_from_cstr(cstr);
+    Defer(Path) p = path_from_cstr(cstr);
     return sb_from_path(p, true);
 }
 
 static void test_path_parts_root(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path p = path_from_cstr("/");
+    Defer(Path) p = path_from_cstr("/");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(p.count == 0);
 }
@@ -26,7 +26,7 @@ static void test_path_parts_root(void)
 static void test_path_parts_absolute(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path p = path_from_cstr("/foo/bar/baz");
+    Defer(Path) p = path_from_cstr("/foo/bar/baz");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(p.count == 3);
     ASSERT_SV_EQ(p.parts[0], "foo");
@@ -37,7 +37,7 @@ static void test_path_parts_absolute(void)
 static void test_path_parts_trailing_slash(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path p = path_from_cstr("/foo/bar/");
+    Defer(Path) p = path_from_cstr("/foo/bar/");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(p.count == 2);
     ASSERT_SV_EQ(p.parts[0], "foo");
@@ -47,7 +47,7 @@ static void test_path_parts_trailing_slash(void)
 static void test_path_parts_single(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path p = path_from_cstr("/foo");
+    Defer(Path) p = path_from_cstr("/foo");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(p.count == 1);
     ASSERT_SV_EQ(p.parts[0], "foo");
@@ -56,7 +56,7 @@ static void test_path_parts_single(void)
 static void test_path_normalize_dotdot(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("/foo/bar/../baz");
+    Defer(String_Builder) sb = sb_of("/foo/bar/../baz");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, "/foo/baz/");
 }
@@ -64,7 +64,7 @@ static void test_path_normalize_dotdot(void)
 static void test_path_normalize_dot(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("/foo/./bar");
+    Defer(String_Builder) sb = sb_of("/foo/./bar");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, "/foo/bar/");
 }
@@ -72,7 +72,7 @@ static void test_path_normalize_dot(void)
 static void test_path_normalize_multiple_dotdot(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("/a/b/c/../../d");
+    Defer(String_Builder) sb = sb_of("/a/b/c/../../d");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, "/a/d/");
 }
@@ -80,7 +80,7 @@ static void test_path_normalize_multiple_dotdot(void)
 static void test_path_normalize_dotdot_past_root(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("/foo/../../bar");
+    Defer(String_Builder) sb = sb_of("/foo/../../bar");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, "/bar/");
 }
@@ -88,7 +88,7 @@ static void test_path_normalize_dotdot_past_root(void)
 static void test_path_normalize_absolute(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("/usr/local/bin");
+    Defer(String_Builder) sb = sb_of("/usr/local/bin");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, "/usr/local/bin/");
 }
@@ -99,7 +99,7 @@ static void test_path_tilde_expansion(void)
     char expected[4096];
     snprintf(expected, sizeof(expected), "%s/projects/", home);
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("~/projects");
+    Defer(String_Builder) sb = sb_of("~/projects");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, expected);
 }
@@ -111,41 +111,41 @@ static void test_path_relative_expansion(void)
     char expected[8192];
     snprintf(expected, sizeof(expected), "%s/foo/bar/", buf);
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_of("foo/bar");
+    Defer(String_Builder) sb = sb_of("foo/bar");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT_STR_EQ(sb.data, expected);
 }
 
 static void test_path_type_file(void)
 {
-    _cleanup_(str_cleanup) char *f = write_temp_file("x");
-    _cleanup_(path_free) Path p = path_from_cstr(f);
+    Defer(char) *f = write_temp_file("x");
+    Defer(Path) p = path_from_cstr(f);
     ASSERT(p.type == PT_FILE);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(p, true);
+    Defer(String_Builder) sb = sb_from_path(p, true);
     ASSERT_STR_EQ(sb.data, f);
     unlink(f);
 }
 
 static void test_path_type_dir(void)
 {
-    _cleanup_(path_free) Path p = path_from_cstr("/tmp");
+    Defer(Path) p = path_from_cstr("/tmp");
     ASSERT(p.type == PT_DIR);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(p, true);
+    Defer(String_Builder) sb = sb_from_path(p, true);
     ASSERT_STR_EQ(sb.data, "/tmp/");
 }
 
 static void test_path_type_nonexistent(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path p = path_from_cstr("/tmp/envwalk_no_such_xyz/");
+    Defer(Path) p = path_from_cstr("/tmp/envwalk_no_such_xyz/");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(p.type == PT_NOT_EXISTS);
 }
 
 static void test_get_pwd_is_absolute(void)
 {
-    _cleanup_(path_free) Path pwd = get_pwd();
-    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(pwd, true);
+    Defer(Path) pwd = get_pwd();
+    Defer(String_Builder) sb = sb_from_path(pwd, true);
     ASSERT(sb.data[0] == '/');
 }
 
@@ -155,16 +155,16 @@ static void test_get_pwd_matches_getcwd(void)
     getcwd(buf, sizeof(buf));
     char expected[8192];
     snprintf(expected, sizeof(expected), "%s/", buf);
-    _cleanup_(path_free) Path pwd = get_pwd();
-    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(pwd, true);
+    Defer(Path) pwd = get_pwd();
+    Defer(String_Builder) sb = sb_from_path(pwd, true);
     ASSERT_STR_EQ(sb.data, expected);
 }
 
 static void test_path_eq_same(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path a = path_from_cstr("/foo/bar");
-    _cleanup_(path_free) Path b = path_from_cstr("/foo/bar");
+    Defer(Path) a = path_from_cstr("/foo/bar");
+    Defer(Path) b = path_from_cstr("/foo/bar");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(path_eq(a, b));
 }
@@ -172,8 +172,8 @@ static void test_path_eq_same(void)
 static void test_path_eq_different(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(path_free) Path a = path_from_cstr("/foo/bar");
-    _cleanup_(path_free) Path b = path_from_cstr("/foo/baz");
+    Defer(Path) a = path_from_cstr("/foo/bar");
+    Defer(Path) b = path_from_cstr("/foo/baz");
     nob_set_log_handler(nob_default_log_handler);
     ASSERT(!path_eq(a, b));
 }

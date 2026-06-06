@@ -34,7 +34,7 @@ static char *config_setup(const char *config_content)
 
 static void config_teardown(const char *orig_home, char *home)
 {
-    config_free();
+    Config_free();
     setenv("HOME", orig_home, 1);
     free(home);
 }
@@ -43,9 +43,22 @@ static void config_teardown(const char *orig_home, char *home)
 // not take ownership).
 static bool allowed_c(const char *cstr)
 {
-    _cleanup_(path_free) Path p = path_from_cstr(cstr);
+    Defer(Path) p = path_from_cstr(cstr);
     bool r = is_path_allowed(p);
     return r;
+}
+
+// Build a temp Path, run allow/deny, and free it (neither takes ownership).
+static int allow_c(const char *cstr)
+{
+    Defer(Path) p = path_from_cstr(cstr);
+    return allow_path(p);
+}
+
+static int deny_c(const char *cstr)
+{
+    Defer(Path) p = path_from_cstr(cstr);
+    return deny_path(p);
 }
 
 static void parse_config_quiet(void)
@@ -73,7 +86,7 @@ static void test_config_is_path_allowed_relative(void)
     char *home = config_setup(nullptr);
     parse_config_quiet();
 
-    allow_path(path_from_cstr("."));
+    allow_c(".");
 
     ASSERT(allowed_c("."));
 
@@ -116,7 +129,7 @@ static void test_config_allow_path(void)
     char *home = config_setup(nullptr);
     parse_config_quiet();
     ASSERT(!allowed_c("/tmp/"));
-    allow_path(path_from_cstr("/tmp/"));
+    allow_c("/tmp/");
     ASSERT(allowed_c("/tmp/"));
     config_teardown(orig, home);
 }
@@ -128,7 +141,7 @@ static void test_config_allow_path_non_directory(void)
     parse_config_quiet();
     char *f = write_temp_file("x");
     nob_set_log_handler(nob_null_log_handler);
-    ASSERT(allow_path(path_from_cstr(f)) == 1); // must fail — not a directory
+    ASSERT(allow_c(f) == 1); // must fail — not a directory
     nob_set_log_handler(nob_default_log_handler);
     unlink(f);
     free(f);
@@ -140,12 +153,12 @@ static void test_config_allow_path_duplicate(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
-    allow_path(path_from_cstr("/tmp/")); // second call should be a no-op
+    allow_c("/tmp/");
+    allow_c("/tmp/"); // second call should be a no-op
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
-    _cleanup_(sb_cleanup) String_Builder sb = {0};
+    Defer(String_Builder) sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     sb_append_null(&sb);
     size_t count = 0;
@@ -160,9 +173,9 @@ static void test_config_deny_path(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
+    allow_c("/tmp/");
     ASSERT(allowed_c("/tmp/"));
-    deny_path(path_from_cstr("/tmp/"));
+    deny_c("/tmp/");
     ASSERT(!allowed_c("/tmp/"));
     config_teardown(orig, home);
 }
@@ -173,7 +186,7 @@ static void test_config_deny_path_not_present(void)
     char *home = config_setup(nullptr);
     parse_config_quiet();
     nob_set_log_handler(nob_null_log_handler);
-    ASSERT(deny_path(path_from_cstr("/tmp/")) == 0); // no-op — path was never added
+    ASSERT(deny_c("/tmp/") == 0); // no-op — path was never added
     nob_set_log_handler(nob_default_log_handler);
     config_teardown(orig, home);
 }
@@ -183,12 +196,12 @@ static void test_config_save_config_writes_file(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
+    allow_c("/tmp/");
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
 
-    _cleanup_(sb_cleanup) String_Builder sb = {0};
+    Defer(String_Builder) sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     sb_append_null(&sb);
     ASSERT(strstr(sb.items, "allowed=/tmp/") != NULL);
@@ -201,14 +214,14 @@ static void test_config_save_config_removes_denied_path(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
-    allow_path(path_from_cstr("/usr/local/"));
-    deny_path(path_from_cstr("/tmp/"));
+    allow_c("/tmp/");
+    allow_c("/usr/local/");
+    deny_c("/tmp/");
 
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
 
-    _cleanup_(sb_cleanup) String_Builder sb = {0};
+    Defer(String_Builder) sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     sb_append_null(&sb);
     ASSERT(strstr(sb.items, "allowed=/tmp/") == NULL);
@@ -228,7 +241,7 @@ static void test_config_save_config_empty_when_no_paths(void)
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
 
-    _cleanup_(sb_cleanup) String_Builder sb = {0};
+    Defer(String_Builder) sb = {0};
     ASSERT(read_entire_file(config_path, &sb));
     ASSERT(sb.count == 0);
 
@@ -240,8 +253,8 @@ static void test_config_save_config_persists_across_reload(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
-    allow_path(path_from_cstr("/usr/local/"));
+    allow_c("/tmp/");
+    allow_c("/usr/local/");
 
     config_reset_for_testing();
     parse_config();
@@ -257,17 +270,17 @@ static void test_config_is_path_allowed_sb(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
+    allow_c("/tmp/");
 
-    _cleanup_(sb_cleanup) String_Builder sb = {0};
+    Defer(String_Builder) sb = {0};
     sb_append_cstr(&sb, "/tmp/");
 
-    _cleanup_(path_free) Path p1 = path_from_sb(sb);
+    Defer(Path) p1 = path_from_sb(sb);
     ASSERT(is_path_allowed(p1));
 
     sb.count = 0;
     sb_append_cstr(&sb, "/nonexistent_xyz/");
-    _cleanup_(path_free) Path p2 = path_from_sb(sb);
+    Defer(Path) p2 = path_from_sb(sb);
     ASSERT(!is_path_allowed(p2));
 
     config_teardown(orig, home);
@@ -343,9 +356,9 @@ static void test_config_deny_removes_only_target(void)
     const char *orig = getenv("HOME");
     char *home = config_setup(nullptr);
     parse_config_quiet();
-    allow_path(path_from_cstr("/tmp/"));
-    allow_path(path_from_cstr("/usr/local/"));
-    deny_path(path_from_cstr("/tmp/"));
+    allow_c("/tmp/");
+    allow_c("/usr/local/");
+    deny_c("/tmp/");
     ASSERT(!allowed_c("/tmp/"));
     ASSERT(allowed_c("/usr/local/"));
     config_teardown(orig, home);

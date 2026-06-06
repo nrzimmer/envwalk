@@ -17,14 +17,14 @@
 #include "stack_trace.h"
 
 static int run(StringList *unsets) {
-    Path pwd = get_pwd();
+    Defer(Path) pwd = get_pwd();
     const size_t pwd_count = pwd.count;
-    _cleanup_(vars_free) Variables dot_env = {0};
+    Defer(Variables) dot_env = {0};
     int rc = 0;
     while (pwd.count > 0) {
         if (is_path_allowed(pwd)) {
             if (!parse_dotenv(&dot_env, pwd)) {
-                _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(pwd, true);
+                Defer(String_Builder) sb = sb_from_path(pwd, true);
                 nob_log(NOB_ERROR, "Failed to parse .env file at %s", sb.data);
                 rc = 1;
                 break;
@@ -33,7 +33,6 @@ static int run(StringList *unsets) {
         --pwd.count;
     }
     pwd.count = pwd_count;
-    path_free(&pwd);
     if (rc != 0)
         return rc;
 
@@ -55,11 +54,11 @@ static int run(StringList *unsets) {
     for (size_t i = 0; i < dot_env.count; ++i) {
         const String_View value = dot_env.items[i].value;
         if (value.count > 0 && value.data[0] == '~') {
-            _cleanup_(path_free) Path path = path_from_sv(value);
-            _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(path, true);
+            Defer(Path) path = path_from_sv(value);
+            Defer(String_Builder) sb = sb_from_path(path, true);
             printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), sb.data);
         } else {
-            _cleanup_(str_cleanup) char *value_str = strndup(value.data, value.count);
+            Defer(char) *value_str = strndup(value.data, value.count);
             printf("export "SV_Fmt"=\"%s\"\n", SV_Arg(dot_env.items[i].key), value_str);
         }
     }
@@ -71,7 +70,7 @@ int chpwd(Path old_path) {
     // First we need to traverse the old_path back until we find a common folder with the current path
     // If there is an allowed folder in each partial path, we need to unset the variables on that folder env
 
-    Path pwd = get_pwd();
+    Defer(Path) pwd = get_pwd();
 
     const size_t max = old_path.count < pwd.count ? old_path.count : pwd.count;
     size_t same = 0;
@@ -88,7 +87,7 @@ int chpwd(Path old_path) {
     const size_t old_count = old_path.count;
     while (old_path.count > same) {
         if (is_path_allowed(old_path)) {
-            _cleanup_(vars_free) Variables dot_env = {0};
+            Defer(Variables) dot_env = {0};
             if (parse_dotenv(&dot_env, old_path)) {
                 for (size_t j = 0; j < dot_env.count; ++j) {
                     da_append(unset, strndup(dot_env.items[j].key.data, dot_env.items[j].key.count));
@@ -98,8 +97,6 @@ int chpwd(Path old_path) {
         --old_path.count;
     }
     old_path.count = old_count;
-    path_free(&old_path);
-    path_free(&pwd);
 
     // Now we run normally to set all the variables in current path
     // This may be unnecessary because it will be run before the next command too
@@ -117,8 +114,8 @@ extern const char _binary_hook_zsh_end[];
 
 static void hook_zsh(const Path bin) {
     const size_t size = _binary_hook_zsh_end - _binary_hook_zsh_start;
-    _cleanup_(str_cleanup) char *format = strndup(_binary_hook_zsh_start, size);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(bin, true);
+    Defer(char) *format = strndup(_binary_hook_zsh_start, size);
+    Defer(String_Builder) sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
 }
 
@@ -127,8 +124,8 @@ extern const char _binary_hook_bash_end[];
 
 static void hook_bash(const Path bin) {
     const size_t size = _binary_hook_bash_end - _binary_hook_bash_start;
-    _cleanup_(str_cleanup) char *format = strndup(_binary_hook_bash_start, size);
-    _cleanup_(sb_cleanup) String_Builder sb = sb_from_path(bin, true);
+    Defer(char) *format = strndup(_binary_hook_bash_start, size);
+    Defer(String_Builder) sb = sb_from_path(bin, true);
     printf(format, sb.data, sb.data);
 }
 
@@ -149,7 +146,7 @@ int hook(const Path bin, const String_View str) {
 
 int main(const int argc, const char **argv) {
     setup_handler();
-    _cleanup_(params_cleanup) Params *params = parse_params(argc, argv);
+    Defer(Params) *params = parse_params(argc, argv);
 
     if (params->action == RUN || params->action == CHPWD)
         nob_minimal_log_level = NOB_ERROR;
@@ -164,11 +161,9 @@ int main(const int argc, const char **argv) {
     switch (params->action) {
         case ALLOW:
             rc = allow_path(params->path);
-            params->path = (Path) {0};
             break;
         case DENY:
             rc = deny_path(params->path);
-            params->path = (Path) {0};
             break;
         case LIST:
             rc = list_paths();
@@ -178,10 +173,9 @@ int main(const int argc, const char **argv) {
             break;
         case CHPWD:
             rc = chpwd(params->path);
-            params->path = (Path) {0};
             break;
         case HOOK: {
-            _cleanup_(path_free) Path bin = path_from_cstr(argv[0]);
+            Defer(Path) bin = path_from_cstr(argv[0]);
             rc = hook(bin, params->text);
             break;
         }
@@ -190,6 +184,6 @@ int main(const int argc, const char **argv) {
             UNREACHABLE("This should not happen...");
     }
 
-    config_free();
+    Config_free();
     return rc;
 }

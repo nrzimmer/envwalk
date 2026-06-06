@@ -11,14 +11,14 @@
 // take ownership of the folder Path).
 static bool parse_dir(Variables *vars, const char *dir)
 {
-    _cleanup_(path_free) Path p = path_from_cstr(dir);
+    Defer(Path) p = path_from_cstr(dir);
     return parse_dotenv(vars, p);
 }
 
 static void test_dotenv_basic(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=value\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=value\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "KEY");
@@ -27,8 +27,8 @@ static void test_dotenv_basic(void)
 
 static void test_dotenv_quoted_value(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=\"hello world\"\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=\"hello world\"\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].value, "hello world");
@@ -36,8 +36,8 @@ static void test_dotenv_quoted_value(void)
 
 static void test_dotenv_comments(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("# hash comment\n// slash comment\nKEY=value\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("# hash comment\n// slash comment\nKEY=value\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "KEY");
@@ -45,16 +45,16 @@ static void test_dotenv_comments(void)
 
 static void test_dotenv_empty_lines(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("\nA=1\n\nB=2\n\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("\nA=1\n\nB=2\n\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 2);
 }
 
 static void test_dotenv_multiple_keys(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("A=1\nB=2\nC=3\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("A=1\nB=2\nC=3\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 3);
     ASSERT_SV_EQ(vars.items[0].key, "A");
@@ -66,8 +66,8 @@ static void test_dotenv_duplicate_keeps_first(void)
 {
     int saved = nob_minimal_log_level;
     nob_minimal_log_level = NOB_ERROR;
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=first\nKEY=second\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=first\nKEY=second\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].value, "first");
@@ -77,7 +77,7 @@ static void test_dotenv_duplicate_keeps_first(void)
 static void test_dotenv_nonexistent_file(void)
 {
     nob_set_log_handler(nob_null_log_handler);
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(Variables) vars = {0};
     ASSERT(!parse_dir(&vars, "/tmp/envwalk_no_such_dir_xyz/"));
     ASSERT(vars.count == 0);
     nob_set_log_handler(nob_default_log_handler);
@@ -85,8 +85,8 @@ static void test_dotenv_nonexistent_file(void)
 
 static void test_dotenv_tilde_value_preserved(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("MYPATH=~/projects\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("MYPATH=~/projects\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].value, "~/projects");
@@ -94,16 +94,16 @@ static void test_dotenv_tilde_value_preserved(void)
 
 static void test_dotenv_empty_file(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 0);
 }
 
 static void test_dotenv_no_trailing_newline(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=value");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=value");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "KEY");
@@ -112,8 +112,8 @@ static void test_dotenv_no_trailing_newline(void)
 
 static void test_dotenv_value_contains_equals(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=foo=bar=baz\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=foo=bar=baz\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "KEY");
@@ -122,10 +122,10 @@ static void test_dotenv_value_contains_equals(void)
 
 static void test_dotenv_path_recorded(void)
 {
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=value\n");
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=value\n");
     char dotenv_path[4096];
     snprintf(dotenv_path, sizeof(dotenv_path), "%s.env", dir);
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].path, dotenv_path);
@@ -134,8 +134,8 @@ static void test_dotenv_path_recorded(void)
 static void test_dotenv_empty_key(void)
 {
     // Line starting with '=' has empty key and non-empty value — stored as-is
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("=value\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("=value\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT(vars.items[0].key.count == 0);
@@ -146,8 +146,8 @@ static void test_dotenv_missing_value_skipped(void)
 {
     int saved = nob_minimal_log_level;
     nob_minimal_log_level = NOB_ERROR;
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEYONLY\nA=1\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEYONLY\nA=1\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "A");
@@ -157,8 +157,8 @@ static void test_dotenv_missing_value_skipped(void)
 static void test_dotenv_single_quoted_value_not_stripped(void)
 {
     // Only double quotes are stripped; single quotes remain in value
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY='hello world'\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY='hello world'\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].value, "'hello world'");
@@ -170,8 +170,8 @@ static void test_dotenv_export_prefix_not_stripped(void)
     // the key becomes "export KEY" and value becomes the rest
     int saved = nob_minimal_log_level;
     nob_minimal_log_level = NOB_ERROR;
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("export KEY=value\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("export KEY=value\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "export KEY");
@@ -182,8 +182,8 @@ static void test_dotenv_export_prefix_not_stripped(void)
 static void test_dotenv_whitespace_trimmed_from_line(void)
 {
     // sv_trim strips leading/trailing whitespace from the whole line
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("  KEY=value   \n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("  KEY=value   \n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "KEY");
@@ -195,8 +195,8 @@ static void test_dotenv_key_equals_empty_value_skipped(void)
     // "KEY=" has equals but empty value — treated same as missing value, skipped
     int saved = nob_minimal_log_level;
     nob_minimal_log_level = NOB_ERROR;
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("KEY=\nA=1\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("KEY=\nA=1\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "A");
@@ -206,8 +206,8 @@ static void test_dotenv_key_equals_empty_value_skipped(void)
 static void test_dotenv_whitespace_only_line_skipped(void)
 {
     // Line containing only spaces is trimmed to empty and skipped
-    _cleanup_(str_cleanup) char *dir = write_temp_dotenv_dir("   \nA=1\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir = write_temp_dotenv_dir("   \nA=1\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir));
     ASSERT(vars.count == 1);
     ASSERT_SV_EQ(vars.items[0].key, "A");
@@ -216,9 +216,9 @@ static void test_dotenv_whitespace_only_line_skipped(void)
 static void test_dotenv_accumulates_across_calls(void)
 {
     // Two parse_dotenv calls into the same Variables accumulate entries
-    _cleanup_(str_cleanup) char *dir1 = write_temp_dotenv_dir("A=1\n");
-    _cleanup_(str_cleanup) char *dir2 = write_temp_dotenv_dir("B=2\n");
-    _cleanup_(vars_free) Variables vars = {0};
+    Defer(char) *dir1 = write_temp_dotenv_dir("A=1\n");
+    Defer(char) *dir2 = write_temp_dotenv_dir("B=2\n");
+    Defer(Variables) vars = {0};
     ASSERT(parse_dir(&vars, dir1));
     ASSERT(parse_dir(&vars, dir2));
     ASSERT(vars.count == 2);

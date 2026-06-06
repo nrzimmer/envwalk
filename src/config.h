@@ -10,7 +10,7 @@ bool is_path_allowed(Path path);
 int allow_path(Path path);
 int deny_path(Path path);
 int list_paths();
-void config_free(void);
+void Config_free(void);
 
 #ifdef TESTING
 void config_reset_for_testing(void);

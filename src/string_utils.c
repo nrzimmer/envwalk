@@ -14,11 +14,11 @@ String_Builder sb_from_string_list(const StringList *da) {
     return sb;
 }
 
-void sb_cleanup(String_Builder *sb) {
+void String_Builder_free(String_Builder *sb) {
     sb_free(*sb);
 }
 
-void str_cleanup(char **p) {
+void char_free(char **p) {
     free(*p);
 }
 
