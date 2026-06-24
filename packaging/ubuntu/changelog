@@ -1,3 +1,13 @@
+envwalk (0.4-0) unstable; urgency=low
+
+  * add Fedora RPM packaging
+  * make memory-safe and run tests under sanitizers
+  * create missing config and tolerate allowed dirs without .env
+  * plug Path/Variables leaks via Defer ownership
+  * make release target actually use CFLAGS_RELEASE
+
+ -- Natanael Rodrigo Zimmer <nrzimmer@gmail.com>  Wed, 24 Jun 2026 00:00:00 -0300
+
 envwalk (0.3-3) unstable; urgency=low
 
   * fix stack trace

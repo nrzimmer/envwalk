@@ -1,3 +1,10 @@
+0.4-0 (2026-06-24)
+  * add Fedora RPM packaging
+  * make memory-safe and run tests under sanitizers
+  * create missing config and tolerate allowed dirs without .env
+  * plug Path/Variables leaks via Defer ownership
+  * make release target actually use CFLAGS_RELEASE
+
 0.3-3 (2026-04-23)
   * fix stack trace
   * run tests with debug and relase configuration

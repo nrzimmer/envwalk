@@ -1,8 +1,8 @@
 %global debug_package %{nil}
 
 Name:           envwalk
-Version:        0.3
-Release:        3%{?dist}
+Version:        0.4
+Release:        0%{?dist}
 Summary:        Per-directory .env loader for zsh and bash
 
 License:        MIT
@@ -35,6 +35,13 @@ install -Dm755 envwalk %{buildroot}%{_bindir}/%{name}
 %{_bindir}/%{name}
 
 %changelog
+* Wed Jun 24 2026 Natanael Rodrigo Zimmer <nrzimmer@gmail.com> - 0.4-0
+- add Fedora RPM packaging
+- make memory-safe and run tests under sanitizers
+- create missing config and tolerate allowed dirs without .env
+- plug Path/Variables leaks via Defer ownership
+- make release target actually use CFLAGS_RELEASE
+
 * Thu Apr 23 2026 Natanael Rodrigo Zimmer <nrzimmer@gmail.com> - 0.3-3
 - fix stack trace
 - run tests with debug and release configuration
