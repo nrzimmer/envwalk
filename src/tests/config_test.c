@@ -351,6 +351,45 @@ static void test_config_list_paths_empty(void)
     config_teardown(orig, home);
 }
 
+static void test_config_creates_file_when_missing(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr); // .config dir exists, no envwalk file
+    parse_config_quiet();
+
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+    ASSERT(access(config_path, F_OK) == 0); // file was created
+
+    Defer(String_Builder) sb = {0};
+    ASSERT(read_entire_file(config_path, &sb));
+    ASSERT(sb.count == 0); // and it is empty
+
+    config_teardown(orig, home);
+}
+
+static void test_config_creates_dir_when_missing(void)
+{
+    const char *orig = getenv("HOME");
+    char *home = config_setup(nullptr);
+
+    // Remove the .config dir so neither the dir nor the file exists.
+    char config_dir[4096];
+    snprintf(config_dir, sizeof(config_dir), "%s/.config", home);
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+    rmdir(config_dir);
+
+    config_reset_for_testing();
+    parse_config_quiet();
+
+    struct stat st;
+    ASSERT(stat(config_dir, &st) == 0 && S_ISDIR(st.st_mode)); // dir created
+    ASSERT(access(config_path, F_OK) == 0);                    // file created
+
+    config_teardown(orig, home);
+}
+
 static void test_config_deny_removes_only_target(void)
 {
     const char *orig = getenv("HOME");
@@ -403,4 +442,8 @@ void run_config_tests(void)
     test_config_list_paths_empty();
     SUITE("deny removes only target");
     test_config_deny_removes_only_target();
+    SUITE("creates config file when missing");
+    test_config_creates_file_when_missing();
+    SUITE("creates config dir when missing");
+    test_config_creates_dir_when_missing();
 }

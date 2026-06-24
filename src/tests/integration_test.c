@@ -163,6 +163,62 @@ static void test_run_parent_dir_vars_loaded(void)
     free(home);
 }
 
+static void test_run_allowed_dir_without_env_ok(void)
+{
+    // An allowed directory with no .env must not error: exit 0, no exports.
+    char *home = integration_setup(NULL);
+
+    char dir[] = "/tmp/envwalk_itest_XXXXXX";
+    mkdtemp(dir);
+
+    char config_content[4096];
+    snprintf(config_content, sizeof(config_content), "allowed=%s/\n", dir);
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+    write_file(config_path, config_content);
+
+    ASSERT(run_envwalk_exit(dir, home, "") == 0);
+    char *out = run_envwalk(dir, home, "");
+    ASSERT(strstr(out, "export") == NULL);
+    ASSERT(strstr(out, "Failed to parse") == NULL);
+
+    free(out);
+    rmdir(dir);
+    free(home);
+}
+
+static void test_run_creates_missing_config(void)
+{
+    // First run with no config file: it is created and exit is 0.
+    char *home = integration_setup(NULL); // .config dir but no envwalk file
+
+    char config_path[4096];
+    snprintf(config_path, sizeof(config_path), "%s/.config/envwalk", home);
+    ASSERT(access(config_path, F_OK) != 0); // not present yet
+
+    ASSERT(run_envwalk_exit("/tmp", home, "") == 0);
+    ASSERT(access(config_path, F_OK) == 0); // created
+
+    free(home);
+}
+
+static void test_run_fatal_when_config_uncreatable(void)
+{
+    // If the config dir cannot be created (a regular file sits where .config
+    // should be a directory), envwalk must fail with a nonzero exit.
+    char *home = strdup("/tmp/envwalk_int_XXXXXX");
+    mkdtemp(home);
+
+    char config_as_file[4096];
+    snprintf(config_as_file, sizeof(config_as_file), "%s/.config", home);
+    write_file(config_as_file, "");
+
+    ASSERT(run_envwalk_exit("/tmp", home, "allow") != 0);
+
+    unlink(config_as_file);
+    free(home);
+}
+
 // --- chpwd() tests ---
 
 static void test_chpwd_unsets_old_dir_vars(void)
@@ -283,6 +339,12 @@ void run_integration_tests(void)
     test_run_tilde_value_expanded();
     SUITE("parent dir vars loaded");
     test_run_parent_dir_vars_loaded();
+    SUITE("allowed dir without .env → exit 0");
+    test_run_allowed_dir_without_env_ok();
+    SUITE("creates missing config");
+    test_run_creates_missing_config();
+    SUITE("fatal when config uncreatable");
+    test_run_fatal_when_config_uncreatable();
 
     printf("integration (chpwd):\n");
     SUITE("unsets vars from old dir");

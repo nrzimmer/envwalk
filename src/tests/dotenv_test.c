@@ -83,6 +83,20 @@ static void test_dotenv_nonexistent_file(void)
     nob_set_log_handler(nob_default_log_handler);
 }
 
+static void test_dotenv_existing_dir_without_env(void)
+{
+    // An existing directory with no .env is a no-op: parse_dotenv returns true
+    // with zero vars (distinct from a nonexistent directory, which returns false).
+    char dir[] = "/tmp/envwalk_noenv_XXXXXX";
+    mkdtemp(dir);
+    char dir_slash[4096];
+    snprintf(dir_slash, sizeof(dir_slash), "%s/", dir);
+    Defer(Variables) vars = {0};
+    ASSERT(parse_dir(&vars, dir_slash));
+    ASSERT(vars.count == 0);
+    rmdir(dir);
+}
+
 static void test_dotenv_tilde_value_preserved(void)
 {
     Defer(char) *dir = write_temp_dotenv_dir("MYPATH=~/projects\n");
@@ -243,6 +257,8 @@ void run_dotenv_tests(void)
     test_dotenv_duplicate_keeps_first();
     SUITE("nonexistent file");
     test_dotenv_nonexistent_file();
+    SUITE("existing dir without .env");
+    test_dotenv_existing_dir_without_env();
     SUITE("tilde value preserved");
     test_dotenv_tilde_value_preserved();
     SUITE("empty file");
