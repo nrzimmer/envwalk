@@ -121,6 +121,24 @@ ubuntu:
 	dpkg-buildpackage -us -uc -b
 	rm -f debian
 
-package: arch ubuntu
+FEDORA_DIR = packaging/fedora
+FEDORA_VER = 0.3
 
-.PHONY: all clean release test arch ubuntu package
+fedora:
+	rm -rf $(FEDORA_DIR)/build
+	mkdir -p $(FEDORA_DIR)/build/SOURCES
+	tar --exclude='src/main.rs' \
+	  --transform 's,^,$(TARGET)-$(FEDORA_VER)/,' \
+	  -czf $(FEDORA_DIR)/build/SOURCES/$(TARGET)-$(FEDORA_VER).tar.gz \
+	  Makefile src
+	rpmbuild --define '_topdir $(CURDIR)/$(FEDORA_DIR)/build' \
+	  -bb $(FEDORA_DIR)/$(TARGET).spec
+	$(if $(INSTALL),sudo rpm -Uvh --force \
+	  $(FEDORA_DIR)/build/RPMS/*/$(TARGET)-$(FEDORA_VER)-*.rpm)
+
+fedora-install: INSTALL=1
+fedora-install: fedora
+
+package: arch ubuntu fedora
+
+.PHONY: all clean release test arch ubuntu fedora fedora-install package

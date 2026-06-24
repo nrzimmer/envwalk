@@ -7,3 +7,10 @@ envwalk
 *.dsc
 *.changes
 *.buildinfo
+*.rpm
+packaging/fedora/build/
+
+
+# Added by cargo
+
+/target

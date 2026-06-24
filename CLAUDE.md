@@ -11,7 +11,8 @@ make test     # run the test suite under AddressSanitizer + LeakSanitizer + UBSa
 make clean    # remove obj/, envwalk binary, and test_runner
 make arch     # build Arch Linux package (requires makepkg)
 make ubuntu   # build Ubuntu/Debian package (requires debhelper)
-make package  # build both packages
+make fedora   # build Fedora RPM package (requires rpmbuild)
+make package  # build all three packages
 ```
 
 The compiler is `gcc` with `-std=c23 -Wall -Wextra -Wpedantic -Werror`. All warnings are treated as errors.
@@ -38,6 +39,7 @@ The compiler is `gcc` with `-std=c23 -Wall -Wextra -Wpedantic -Werror`. All warn
 **Packaging:**
 - `packaging/arch/PKGBUILD` — Arch Linux package
 - `packaging/ubuntu/` — Ubuntu/Debian package control files (`control`, `changelog`, `rules`, `compat`, `copyright`, `install`)
+- `packaging/fedora/envwalk.spec` — Fedora RPM spec (built via `make fedora`; output under `packaging/fedora/build/`)
 
 **Key data types (from nob.h):**
 - `String_View` — non-owning `{data, count}` slice
