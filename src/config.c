@@ -16,16 +16,37 @@ typedef struct {
 
 static Config config = {0};
 
-void parse_config() {
+// (Re)sets `config_path` to ~/.config/, creating the directory if it does not
+// exist. A missing config directory is the normal first-run case; failing to
+// create it is fatal, since envwalk cannot read or persist its allowlist.
+static void ensure_config_dir(void) {
     Path_free(&config_path);
     config_path = path_from_cstr("~/.config/");
     NOB_ASSERT(config_path.count > 0 && "config_path not set");
+
+    if (config_path.type == PT_DIR)
+        return;
+
+    Defer(String_Builder) sb_config_dir = sb_from_path(config_path, true);
+    if (!mkdir_if_not_exists(sb_config_dir.data)) {
+        nob_log(NOB_ERROR, "Failed to create config directory: %s", sb_config_dir.data);
+        exit(EXIT_FAILURE);
+    }
+    config_path.type = PT_DIR;
+}
+
+void parse_config() {
+    ensure_config_dir();
     Defer(String_Builder) sb_config_file = sb_from_path_with_file(config_path, sv_from_cstr("envwalk"));
 
     PathList *allowed_paths = &config.allowed_paths;
     Defer(String_Builder) sb = {0};
     if (!read_entire_file(sb_config_file.data, &sb)) {
         nob_log(NOB_INFO, "Generating a new config file");
+        if (!write_entire_file(sb_config_file.data, "", 0)) {
+            nob_log(NOB_ERROR, "Failed to create config file: %s", sb_config_file.data);
+            exit(EXIT_FAILURE);
+        }
         return;
     }
 
@@ -56,9 +77,7 @@ void parse_config() {
 }
 
 void save_config() {
-    Path_free(&config_path);
-    config_path = path_from_cstr("~/.config/");
-    NOB_ASSERT(config_path.count > 0 && "config_path not set");
+    ensure_config_dir();
     Defer(String_Builder) sb_config_file = sb_from_path_with_file(config_path, sv_from_cstr("envwalk"));
 
     Defer(String_Builder) sb = {0};
@@ -70,6 +89,7 @@ void save_config() {
     }
     if (!write_entire_file(sb_config_file.data, sb.data, sb.count)) {
         nob_log(NOB_ERROR, "Failed to write config file: %s", sb_config_file.data);
+        exit(EXIT_FAILURE);
     }
 }
 

@@ -7,6 +7,8 @@ bool parse_dotenv(Variables *variables, const Path folder) {
         return false;
     Defer(String_Builder) sb = {0};
     Defer(String_Builder) filepath = sb_from_path_with_file(folder, sv_from_cstr(".env"));
+    if (file_exists(filepath.data) == 0)
+        return true;   // allowed dir with no .env: nothing to load, not an error
     if (!read_entire_file(filepath.data, &sb))
         return false;
     String_View sv = sb_to_sv(sb);
